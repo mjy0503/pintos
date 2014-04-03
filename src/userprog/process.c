@@ -213,16 +213,21 @@ load (const char *file_name, void (**eip) (void), void **esp)
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
+  char *file_save = palloc_get_page(0), *word, *brkt;
   int i;
-
+  if(file_save == NULL)
+    return success;
+  memcpy(file_save, file_name, strlen(file_name));
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
-
+  
   /* Open executable file. */
+  word = strtok_r(file_save, " ", &brkt);
   file = filesys_open (file_name);
+  memcpy(file_save, file_name, strlen(file_name));
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -308,10 +313,38 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  success = true;
+  int argc = 0;
+  void *argv_data, *argv;
+  for(word = strtok_r(file_save, " ", &brkt); word; word = strtok_r(NULL, " ", &brkt)){
+    *esp -= strlen(word) + 1;
+    argc++;
+  }
+  argv_data = *esp;
+  *esp = (int)(*esp) & 0xfffffffc;
+  *esp -= sizeof(char *) * (argc+1);
+  argv = *esp;
 
+  *esp -= sizeof(char **);
+  *((char **)(*esp)) = argv;
+  *esp -= sizeof(int *);
+  *((int *)(*esp)) = argc;
+  *esp -= sizeof(void *);
+  for(word = strtok_r(file_name, " ", &brkt); word; word = strtok_r(NULL, " ", &brkt)){
+    printf("%s %x %x\n",word,argv_data,argv);
+    memcpy(argv_data, word, strlen(word) + 1);
+    memcpy(argv, &argv_data, sizeof(char *));
+    argv_data += strlen(word)+1;
+    argv += sizeof(char *);
+  }
+  *((char **)argv) = NULL;
+
+  success = true;
+  printf("%x %x %x %x\n",*((int *)*esp),*((int *)(*esp+4)),*((int *)(*esp+8)),*((int *)(*esp+12)));
+  printf("%x %x %x %x\n",*((int *)(*esp+16)),*((int *)(*esp+20)),*((int *)(*esp+24)),*((int *)(*esp+28)));
+  printf("%d %d %d %d\n",*((char *)(*esp+20)),*((char *)(*esp+21)),*((char *)(*esp+22)),*((char *)(*esp+23)));
  done:
   /* We arrive here whether the load is successful or not. */
+  palloc_free_page (file_save); 
   file_close (file);
   return success;
 }
