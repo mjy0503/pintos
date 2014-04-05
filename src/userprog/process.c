@@ -8,10 +8,12 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/flags.h"
+#include "threads/synch.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
@@ -28,7 +30,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *temp;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -38,6 +40,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  file_name = strtok_r((char *)file_name, " ", &temp);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -221,18 +224,21 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
-    goto done;
+    goto done_nolock;
   process_activate ();
-  
+ 
   /* Open executable file. */
+  lock_acquire(&file_lock);
   word = strtok_r(file_save, " ", &brkt);
-  file = filesys_open (file_name);
-  memcpy(file_save, file_name, strlen(file_name));
+  file = filesys_open (word);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+  
+  file_deny_write(file);
+  thread_current()->exec_file = file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -315,12 +321,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   int argc = 0;
   void *argv_data, *argv;
+
+  memcpy(file_save, file_name, strlen(file_name));
   for(word = strtok_r(file_save, " ", &brkt); word; word = strtok_r(NULL, " ", &brkt)){
     *esp -= strlen(word) + 1;
     argc++;
   }
   argv_data = *esp;
-  *esp = (int)(*esp) & 0xfffffffc;
+  *esp = (void *)((int)(*esp) & 0xfffffffc);
   *esp -= sizeof(char *) * (argc+1);
   argv = *esp;
 
@@ -329,8 +337,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *esp -= sizeof(int *);
   *((int *)(*esp)) = argc;
   *esp -= sizeof(void *);
-  for(word = strtok_r(file_name, " ", &brkt); word; word = strtok_r(NULL, " ", &brkt)){
-    printf("%s %x %x\n",word,argv_data,argv);
+  *((void **)(*esp)) = NULL;
+
+  memcpy(file_save, file_name, strlen(file_name));
+  for(word = strtok_r(file_save, " ", &brkt); word; word = strtok_r(NULL, " ", &brkt)){
     memcpy(argv_data, word, strlen(word) + 1);
     memcpy(argv, &argv_data, sizeof(char *));
     argv_data += strlen(word)+1;
@@ -339,11 +349,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *((char **)argv) = NULL;
 
   success = true;
-  printf("%x %x %x %x\n",*((int *)*esp),*((int *)(*esp+4)),*((int *)(*esp+8)),*((int *)(*esp+12)));
-  printf("%x %x %x %x\n",*((int *)(*esp+16)),*((int *)(*esp+20)),*((int *)(*esp+24)),*((int *)(*esp+28)));
-  printf("%d %d %d %d\n",*((char *)(*esp+20)),*((char *)(*esp+21)),*((char *)(*esp+22)),*((char *)(*esp+23)));
  done:
   /* We arrive here whether the load is successful or not. */
+  lock_release(&file_lock);
+ done_nolock:
   palloc_free_page (file_save); 
   file_close (file);
   return success;

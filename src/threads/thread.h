@@ -95,6 +95,11 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct file *exec_file;             /* excute file for allow_write */
+    struct list file_list;              /* list of files */
+    int maxfd;                          /* max of fd */
+    struct list child_list;             /* list of childs */
+
 #endif
 
     /* Owned by thread.c. */

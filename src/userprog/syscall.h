@@ -1,8 +1,18 @@
 #include <stdbool.h>
+#include "threads/synch.h"
+#include <list.h>
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
 #define pid_t int
+
+struct file_fd{
+  int fd;
+  struct file *file;
+  struct list_elem elem;
+};
+
+struct lock file_lock;
 
 void syscall_init (void);
 
