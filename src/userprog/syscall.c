@@ -37,16 +37,8 @@ void check_bytes(void *addr, unsigned size)
     check_vaddr(save);
     save++;
   }
-}
-
-void check_string(void *addr)
-{
-  void *save = addr;
-  while(1){
-    check_vaddr(save);
-    if(*((char *)save) == '\0') break;
-    save++;
-  }
+  if(pagedir_get_page(thread_current()->pagedir, addr) == NULL)
+    sys_exit(-1);
 }
 
 void* get_kernel_ptr(void *vaddr)
@@ -71,11 +63,9 @@ get_file(int fd)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
+syscall_handler (struct intr_frame *f UNUSED) 
 {
   check_bytes(f->esp, 4);
-  if(pagedir_get_page(thread_current()->pagedir, f->esp) == NULL)
-    sys_exit(-1);
   int selector = *(int *)(f->esp);
   switch(selector){
     case SYS_HALT:
@@ -96,7 +86,6 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       const char *cmd_line;
       check_bytes(f->esp+4, 4);
       memcpy(&cmd_line, f->esp+4, sizeof(char *));
-//      check_string((void *)cmd_line);
       cmd_line = get_kernel_ptr((void *)cmd_line);
       f->eax = sys_exec(cmd_line);
       break;
@@ -118,7 +107,6 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       memcpy(&file, f->esp+4, sizeof(char *));
       memcpy(&initial_size, f->esp+8, sizeof(unsigned));
       file = get_kernel_ptr((void *)file);
-//      check_string((void *)file);
       f->eax = sys_create(file, initial_size);
       break;
     }
@@ -128,7 +116,6 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       check_bytes(f->esp+4, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
       file = get_kernel_ptr((void *)file);
-//      check_string((void *)file);
       f->eax = sys_remove(file);
       break;
     }
@@ -138,7 +125,6 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       check_bytes(f->esp+4, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
       file = get_kernel_ptr((void *)file);
-//      check_string((void *)file);
       f->eax = sys_open(file);
       break;
     }
