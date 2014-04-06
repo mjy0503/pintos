@@ -178,6 +178,14 @@ thread_create (const char *name, int priority,
   if (t == NULL)
     return TID_ERROR;
 
+  struct process_stat *child = palloc_get_page(0);
+  if(child == NULL)
+    return TID_ERROR;
+  sema_init(&child->wait_sema, 0);
+  sema_init(&child->load_sema, 0);
+  child->is_parent_exit = false;
+  child->already_wait = false;
+
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
@@ -196,9 +204,11 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
 
+  t->process = child;
+  child->pid = tid;
+  list_push_back(&thread_current()->child_list, &child->elem);
   /* Add to run queue. */
   thread_unblock (t);
-  thread_yield();
 
   return tid;
 }
@@ -441,8 +451,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->exec_file = NULL;
   list_init(&t->file_list);
   t->maxfd = 2;
+  list_init(&t->child_list);
+  t->process = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

@@ -23,6 +23,17 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+struct process_stat* get_process(pid_t pid){
+  struct thread *t = thread_current();
+  struct list_elem *e;
+  for(e = list_begin(&t->child_list); e != list_end(&t->child_list); e = list_next(e)){
+    if(list_entry(e, struct process_stat, elem)->pid == pid){
+      return list_entry(e, struct process_stat, elem);
+    }
+  }
+  return NULL;
+}
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -43,9 +54,20 @@ process_execute (const char *file_name)
   file_name = strtok_r((char *)file_name, " ", &temp);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
-  return tid;
+  if (tid == TID_ERROR){
+    palloc_free_page (fn_copy);
+    return TID_ERROR;
+  }
+  
+  struct process_stat *child = get_process(tid);
+  if(child == NULL){
+    PANIC("no child process??");
+    palloc_free_page (fn_copy);
+    return TID_ERROR;
+  }
+  
+  sema_down(&child->load_sema);
+  return child->pid;
 }
 
 /* A thread function that loads a user process and makes it start
@@ -66,8 +88,14 @@ start_process (void *f_name)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+
+  if (!success){ 
+    thread_current()->process->pid = -1;
+    sema_up(&thread_current()->process->load_sema);
     thread_exit ();
+  }
+  else
+    sema_up(&thread_current()->process->load_sema);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -91,7 +119,27 @@ start_process (void *f_name)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  struct thread *t = thread_current();
+  struct process_stat *child = NULL;
+  struct list_elem *e;
+  int ret = -1;
+
+  for(e = list_begin(&t->child_list); e != list_end(&t->child_list); e = list_next(e)){
+    if(list_entry(e, struct process_stat, elem)->pid == child_tid){
+      child = list_entry(e, struct process_stat, elem);
+      list_remove(e);
+    }
+  }
+
+  if(child == NULL || child->already_wait)
+    return -1;
+
+  child->already_wait = true; 
+  sema_down(&child->wait_sema);
+
+  ret = child->exit_stat;
+  palloc_free_page(child);
+  return ret;
 }
 
 /* Free the current process's resources. */
@@ -99,7 +147,42 @@ void
 process_exit (void)
 {
   struct thread *curr = thread_current ();
+  struct process_stat *process = NULL;
+  struct file_fd *del_file_fd;
+  struct list_elem *e;
   uint32_t *pd;
+
+  lock_acquire(&file_lock);
+  for(e = list_begin(&curr->file_list); e != list_end(&curr->file_list);){
+    del_file_fd = list_entry(e, struct file_fd, elem);
+    file_close(del_file_fd->file);
+    e = list_remove(e);
+    palloc_free_page(del_file_fd);
+  }
+  lock_release(&file_lock);
+
+  for(e = list_begin(&curr->child_list); e != list_end(&curr->child_list);){
+    process = list_entry(e, struct process_stat, elem);
+    if(process->wait_sema.value == 0){// not exit
+      process->is_parent_exit = true;
+      e = list_next(e);
+    }
+    else{//exit
+      e = list_remove(e);
+      palloc_free_page(process);
+    }
+  } 
+
+  sema_up(&curr->process->wait_sema);
+  if(curr->process->is_parent_exit){
+    palloc_free_page(process);
+  }
+
+  if(curr->exec_file != NULL){
+    lock_acquire(&file_lock);
+    file_close(curr->exec_file);
+    lock_release(&file_lock);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -220,7 +303,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
   if(file_save == NULL)
     return success;
-  memcpy(file_save, file_name, strlen(file_name));
+  strlcpy(file_save, file_name, PGSIZE);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -354,7 +437,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   lock_release(&file_lock);
  done_nolock:
   palloc_free_page (file_save); 
-  file_close (file);
   return success;
 }
 

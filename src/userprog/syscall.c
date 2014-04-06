@@ -1,4 +1,6 @@
 #include "userprog/syscall.h"
+#include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include <string.h>
 #include <stdio.h>
 #include <syscall-nr.h>
@@ -11,7 +13,6 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
-#define pid_t int
 
 static void syscall_handler (struct intr_frame *);
 
@@ -38,6 +39,25 @@ void check_bytes(void *addr, unsigned size)
   }
 }
 
+void check_string(void *addr)
+{
+  void *save = addr;
+  while(1){
+    check_vaddr(save);
+    if(*((char *)save) == '\0') break;
+    save++;
+  }
+}
+
+void* get_kernel_ptr(void *vaddr)
+{
+  check_vaddr(vaddr);
+  void *kernel_ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
+  if(kernel_ptr == NULL)
+    sys_exit(-1);
+  return kernel_ptr;
+}
+
 struct file*
 get_file(int fd)
 {
@@ -54,6 +74,8 @@ static void
 syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
 {
   check_bytes(f->esp, 4);
+  if(pagedir_get_page(thread_current()->pagedir, f->esp) == NULL)
+    sys_exit(-1);
   int selector = *(int *)(f->esp);
   switch(selector){
     case SYS_HALT:
@@ -74,7 +96,8 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       const char *cmd_line;
       check_bytes(f->esp+4, 4);
       memcpy(&cmd_line, f->esp+4, sizeof(char *));
-      check_bytes((void *)cmd_line, strlen(cmd_line));
+//      check_string((void *)cmd_line);
+      cmd_line = get_kernel_ptr((void *)cmd_line);
       f->eax = sys_exec(cmd_line);
       break;
     }
@@ -94,7 +117,8 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       check_bytes(f->esp+8, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
       memcpy(&initial_size, f->esp+8, sizeof(unsigned));
-      check_bytes((void *)file, strlen(file));
+      file = get_kernel_ptr((void *)file);
+//      check_string((void *)file);
       f->eax = sys_create(file, initial_size);
       break;
     }
@@ -103,7 +127,8 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       char *file;
       check_bytes(f->esp+4, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
-      check_bytes((void *)file, strlen(file));
+      file = get_kernel_ptr((void *)file);
+//      check_string((void *)file);
       f->eax = sys_remove(file);
       break;
     }
@@ -112,7 +137,8 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       char *file;
       check_bytes(f->esp+4, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
-      check_bytes((void *)file, strlen(file));
+      file = get_kernel_ptr((void *)file);
+//      check_string((void *)file);
       f->eax = sys_open(file);
       break;
     }
@@ -136,6 +162,7 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       memcpy(&buffer, f->esp+8, sizeof(void *));
       memcpy(&size, f->esp+12, sizeof(unsigned));
       check_bytes(buffer, size);
+      buffer = get_kernel_ptr(buffer);
       f->eax = sys_read(fd, buffer, size);
       break;
     }
@@ -150,7 +177,8 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       memcpy(&fd, f->esp+4, sizeof(int));
       memcpy(&buffer, f->esp+8, sizeof(void *));
       memcpy(&size, f->esp+12, sizeof(unsigned));
-      check_bytes(buffer, size);
+      check_bytes((void *)buffer, size);
+      buffer = get_kernel_ptr((void *)buffer);
       f->eax = sys_write(fd, buffer, size);
       break;
     }
@@ -181,6 +209,9 @@ syscall_handler (struct intr_frame *f UNUSED)  // is_user_vaddr, >0x08048000
       sys_close(fd);
       break;
     }
+    default:
+    sys_exit(-1);
+    break;
   }
 
 }
@@ -192,16 +223,21 @@ void sys_halt (void)
 
 void sys_exit (int status)
 {
+  printf("%s: exit(%d)\n", thread_current()->name, status);
+  thread_current()->process->exit_stat = status;
+  thread_exit();
 }
 
 pid_t sys_exec (const char *cmd_line)
 {
-  return 0;
+  pid_t ret = process_execute(cmd_line);
+  return ret;
 }
 
 int sys_wait (pid_t pid)
 {
-  return 0;
+  int ret = process_wait(pid);
+  return ret;
 }
 
 bool sys_create (const char *file, unsigned initial_size)
