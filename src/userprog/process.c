@@ -524,36 +524,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      struct page_entry *p = page_create(&thread_current()->page_table, upage, true);
+      struct page_entry *p = page_create_file(&thread_current()->page_table, upage, writable, file, ofs, read_bytes, zero_bytes);
       if(p == NULL)
         return false;
-      uint8_t *kpage = frame_alloc(PAL_USER, p);
-      if (kpage == NULL){
-        page_delete(&thread_current()->page_table, p);
-        return false;
-      }
-
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          page_delete(&thread_current()->page_table, p);
-          frame_free (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          page_delete(&thread_current()->page_table, p);
-          frame_free (kpage);
-          return false; 
-        }
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += page_read_bytes;
     }
   return true;
 }
@@ -566,7 +545,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  struct page_entry *p = page_create(&thread_current()->page_table, ((uint8_t *) PHYS_BASE) - PGSIZE, true);
+  struct page_entry *p = page_create(&thread_current()->page_table, ((uint8_t *) PHYS_BASE) - PGSIZE, true, 0);
   if(p == NULL)
     return false;
   kpage = frame_alloc (PAL_USER | PAL_ZERO, p);
