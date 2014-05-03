@@ -1,6 +1,7 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include "vm/page.h"
 #include "userprog/syscall.h"
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
@@ -152,6 +153,10 @@ page_fault (struct intr_frame *f)
   if(not_present && is_user_vaddr(fault_addr)){
     if(page_load(&thread_current()->page_table, fault_addr, thread_current()->pagedir))
       return ;
+    if(fault_addr >= f->esp - 32 && PHYS_BASE - fault_addr <= STACK_SIZE){
+      if(stack_growth(&thread_current()->page_table, fault_addr, thread_current()->pagedir))
+        return ;
+    }
   }
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

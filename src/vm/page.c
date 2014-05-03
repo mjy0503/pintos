@@ -29,16 +29,13 @@ void page_table_destroy(struct hash *page_table){
   hash_destroy(page_table, page_action_func);
 }
 
-struct page_entry *page_create(struct hash *page_table, void *addr, bool writable, bool status){ // 0 = FRAME, 1 = ZERO
+struct page_entry *page_create(struct hash *page_table, void *addr, bool writable){
   struct page_entry *p = malloc(sizeof(struct page_entry));
   if(p == NULL)
     return false;
 
   p->page = pg_round_down(addr);
-  if(status)
-    p->status = ALL_ZERO;
-  else
-    p->status = FRAME;
+  p->status = FRAME;
   p->writable = writable;
 
   if(hash_insert(page_table, &p->hash_elem) != NULL)
@@ -116,13 +113,20 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
         return false;
       break;
     }
-    case ALL_ZERO:
-    {
-      break;
-    }
     default:
       PANIC("WHAT STATUS OF LOAD?");
   }
   return true;
 }
 
+bool stack_growth(struct hash *page_table, void *addr, uint32_t *pagedir){
+  struct page_entry *p = page_create(page_table, addr, true);
+  if(p == NULL) return false;
+  
+  uint8_t *kpage = frame_alloc(PAL_USER | PAL_ZERO, p);
+  if(kpage == NULL){
+    page_delete(page_table, p);
+    return false;
+  }
+  pagedir_set_page(pagedir, p->page, kpage, p->writable);
+}

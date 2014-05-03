@@ -25,7 +25,7 @@ syscall_init (void)
 
 void check_vaddr(void *vaddr)
 {
-  if(!is_user_vaddr(vaddr) || vaddr < (void *)0x08048000)
+  if(!is_user_vaddr(vaddr))
     sys_exit(-1);
 }
 
@@ -41,13 +41,12 @@ void check_bytes(void *addr, unsigned size)
     sys_exit(-1);
 }
 
-void* get_kernel_ptr(void *vaddr)
+void check_kernel_ptr(void *vaddr)
 {
   check_vaddr(vaddr);
   void *kernel_ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
   if(kernel_ptr == NULL)
     sys_exit(-1);
-  return kernel_ptr;
 }
 
 struct file*
@@ -86,7 +85,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       const char *cmd_line;
       check_bytes(f->esp+4, 4);
       memcpy(&cmd_line, f->esp+4, sizeof(char *));
-      cmd_line = get_kernel_ptr((void *)cmd_line);
+      check_kernel_ptr((void *)cmd_line);
       f->eax = sys_exec(cmd_line);
       break;
     }
@@ -106,7 +105,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_bytes(f->esp+8, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
       memcpy(&initial_size, f->esp+8, sizeof(unsigned));
-      file = get_kernel_ptr((void *)file);
+      check_kernel_ptr((void *)file);
       f->eax = sys_create(file, initial_size);
       break;
     }
@@ -115,7 +114,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       char *file;
       check_bytes(f->esp+4, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
-      file = get_kernel_ptr((void *)file);
+      check_kernel_ptr((void *)file);
       f->eax = sys_remove(file);
       break;
     }
@@ -124,7 +123,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       char *file;
       check_bytes(f->esp+4, 4);
       memcpy(&file, f->esp+4, sizeof(char *));
-      file = get_kernel_ptr((void *)file);
+      check_kernel_ptr((void *)file);
       f->eax = sys_open(file);
       break;
     }
@@ -148,7 +147,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       memcpy(&buffer, f->esp+8, sizeof(void *));
       memcpy(&size, f->esp+12, sizeof(unsigned));
       check_bytes(buffer, size);
-      buffer = get_kernel_ptr(buffer);
+      check_kernel_ptr(buffer);
       f->eax = sys_read(fd, buffer, size);
       break;
     }
@@ -164,7 +163,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       memcpy(&buffer, f->esp+8, sizeof(void *));
       memcpy(&size, f->esp+12, sizeof(unsigned));
       check_bytes((void *)buffer, size);
-      buffer = get_kernel_ptr((void *)buffer);
+      check_kernel_ptr((void *)buffer);
       f->eax = sys_write(fd, buffer, size);
       break;
     }

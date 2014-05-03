@@ -27,10 +27,11 @@ struct page_entry{
 
 bool page_table_init(struct hash *page_table);
 void page_table_destroy(struct hash *page_table);
-struct page_entry *page_create(struct hash *page_table, void *addr, bool writable, bool status);
+struct page_entry *page_create(struct hash *page_table, void *addr, bool writable);
 struct page_entry *page_create_file(struct hash *page_table, void *addr, bool writable, struct file *file, off_t offset, uint32_t read_bytes, uint32_t zero_bytes);
 struct page_entry *page_find(struct hash *page_table, void *addr);
 void page_delete(struct hash *page_table, struct page_entry *p);
 bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir);
+bool stack_growth(struct hash *page_table, void *addr, uint32_t *pagedir);
 
 #endif

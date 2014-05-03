@@ -43,7 +43,7 @@ struct process_stat* get_process(pid_t pid){
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy, *temp;
+  char *fn_copy, *fn_copy2, *temp;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -51,13 +51,20 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+  fn_copy2 = palloc_get_page (0);
+  if(fn_copy2 == NULL){
+    palloc_free_page(fn_copy);
+    return TID_ERROR;
+  }
   strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy2, file_name, PGSIZE);
 
-  file_name = strtok_r((char *)file_name, " ", &temp);
+  fn_copy2 = strtok_r((char *)fn_copy2, " ", &temp);
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn_copy2, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
+    palloc_free_page (fn_copy2);
     return TID_ERROR;
   }
   
@@ -65,9 +72,11 @@ process_execute (const char *file_name)
   if(child == NULL){
     PANIC("no child process??");
     palloc_free_page (fn_copy);
+    palloc_free_page (fn_copy2);
     return TID_ERROR;
   }
   
+  palloc_free_page (fn_copy2);
   sema_down(&child->load_sema);
   return child->pid;
 }
@@ -545,7 +554,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  struct page_entry *p = page_create(&thread_current()->page_table, ((uint8_t *) PHYS_BASE) - PGSIZE, true, 0);
+  struct page_entry *p = page_create(&thread_current()->page_table, ((uint8_t *) PHYS_BASE) - PGSIZE, true);
   if(p == NULL)
     return false;
   kpage = frame_alloc (PAL_USER | PAL_ZERO, p);
