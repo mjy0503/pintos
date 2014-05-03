@@ -3,6 +3,7 @@
 
 #include <debug.h>
 #include <list.h>
+#include <hash.h>
 #include <stdint.h>
 
 /* States in a thread's life cycle. */
@@ -104,6 +105,7 @@ struct thread
 
 #endif
 
+    struct hash page_table;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

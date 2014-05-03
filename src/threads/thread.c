@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "vm/frame.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -188,6 +189,7 @@ thread_create (const char *name, int priority,
 
   /* Initialize thread. */
   init_thread (t, name, priority);
+  page_table_init(&t->page_table);
   tid = t->tid = allocate_tid ();
 
   /* Stack frame for kernel_thread(). */

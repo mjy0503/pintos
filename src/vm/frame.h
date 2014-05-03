@@ -1,8 +1,6 @@
+#ifndef VM_FRAME_H
+#define VM_FRAME_H
 #include "vm/page.h"
-
-struct list frame_table;
-
-struct lock frame_lock;
 
 struct frame_entry{
   void *frame;
@@ -10,7 +8,8 @@ struct frame_entry{
   struct list_elem elem;
 };
 
-void init_frame();
-void *alloc_frame(enum palloc_flags flags);
-void free_frame(void *frame);
+void frame_init(void);
+void *frame_alloc(enum palloc_flags flags, struct page_entry *p);
+void frame_free(void *frame);
 
+#endif

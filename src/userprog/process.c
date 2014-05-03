@@ -20,6 +20,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -185,6 +186,7 @@ process_exit (void)
     lock_release(&file_lock);
   }
 
+  page_table_destroy(&curr->page_table);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = curr->pagedir;
@@ -522,14 +524,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = alloc_frame (PAL_USER);
-      if (kpage == NULL)
+      struct page_entry *p = page_create(&thread_current()->page_table, upage, true);
+      if(p == NULL)
         return false;
+      uint8_t *kpage = frame_alloc(PAL_USER, p);
+      if (kpage == NULL){
+        page_delete(&thread_current()->page_table, p);
+        return false;
+      }
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          free_frame (kpage);
+          page_delete(&thread_current()->page_table, p);
+          frame_free (kpage);
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -537,7 +545,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
-          free_frame (kpage);
+          page_delete(&thread_current()->page_table, p);
+          frame_free (kpage);
           return false; 
         }
 
@@ -557,15 +566,23 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = alloc_frame (PAL_USER | PAL_ZERO);
+  struct page_entry *p = page_create(&thread_current()->page_table, ((uint8_t *) PHYS_BASE) - PGSIZE, true);
+  if(p == NULL)
+    return false;
+  kpage = frame_alloc (PAL_USER | PAL_ZERO, p);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
-      else
-        free_frame (kpage);
+      else{
+        page_delete(&thread_current()->page_table, p);
+        frame_free (kpage);
+      }
     }
+  else
+    page_delete(&thread_current()->page_table, p);
+
   return success;
 }
 
