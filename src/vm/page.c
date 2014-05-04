@@ -1,8 +1,10 @@
 #include "vm/page.h"
+#include "vm/swap.h"
 #include "vm/frame.h"
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include <stdint.h>
@@ -18,7 +20,14 @@ bool page_less_func(const struct hash_elem *a, const struct hash_elem *b, void *
 }
 
 void page_action_func(struct hash_elem *hash_elem, void *aux UNUSED){
-  free(hash_entry(hash_elem, struct page_entry, hash_elem));
+  struct page_entry *p = hash_entry(hash_elem, struct page_entry, hash_elem);
+  if(p->status == SWAP_SLOT)
+    swap_free(p->swap_index);
+  if(p->status == FRAME){
+    frame_free(pagedir_get_page(thread_current()->pagedir, p->page));
+    pagedir_clear_page(thread_current()->pagedir, p->page);
+  }
+  free(p);
 }
 
 bool page_table_init(struct hash *page_table){
@@ -37,6 +46,7 @@ struct page_entry *page_create(struct hash *page_table, void *addr, bool writabl
   p->page = pg_round_down(addr);
   p->status = FRAME;
   p->writable = writable;
+  p->file = NULL;
 
   if(hash_insert(page_table, &p->hash_elem) != NULL)
     free(p);
@@ -84,6 +94,17 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
       break;
     case SWAP_SLOT:
     {
+      uint8_t *kpage = frame_alloc(PAL_USER, p);
+      if(kpage == NULL)
+        return false;
+
+      swap_in(p->swap_index, kpage);
+      if(!pagedir_set_page(pagedir, p->page, kpage, p->writable)){
+        frame_free(kpage);
+        return false;
+      }
+
+      p->status = FRAME;
       break;
     }
     case FILE_SYS:
@@ -99,15 +120,16 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
       file_seek(p->file, p->offset);
       if (file_read (p->file, kpage, p->read_bytes) != (int) p->read_bytes)
         {
-          lock_release(&file_lock);
           frame_free (kpage);
           return false; 
         }
       memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
-      p->status = FRAME;
-      if(!pagedir_set_page(pagedir, p->page, kpage, p->writable))
+      if(!pagedir_set_page(pagedir, p->page, kpage, p->writable)){
+        frame_free(kpage);
         return false;
+      }
+      p->status = FRAME;
       break;
     }
     default:

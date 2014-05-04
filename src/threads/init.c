@@ -35,6 +35,7 @@
 #include "filesys/fsutil.h"
 #endif
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Amount of physical memory, in 4 kB pages. */
 size_t ram_pages;
@@ -114,6 +115,7 @@ main (void)
 #ifdef FILESYS
   /* Initialize file system. */
   disk_init ();
+  swap_init ();
   filesys_init (format_filesys);
 #endif
 

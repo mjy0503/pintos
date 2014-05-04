@@ -22,6 +22,8 @@ struct page_entry{
   uint32_t read_bytes;            /* read bytes from file */
   uint32_t zero_bytes;            /* zero bytes */
 
+  size_t swap_index;              /* start index of swap disk */
+
   struct hash_elem hash_elem;     /* hash element */
 };
 

@@ -533,7 +533,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      struct page_entry *p = page_create_file(&thread_current()->page_table, upage, writable, file, ofs, read_bytes, zero_bytes);
+      struct page_entry *p = page_create_file(&thread_current()->page_table, upage, writable, file, ofs, page_read_bytes, page_zero_bytes);
       if(p == NULL)
         return false;
 
