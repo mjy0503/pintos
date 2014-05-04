@@ -13,6 +13,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -23,30 +24,37 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-void check_vaddr(void *vaddr)
+struct page_entry *check_vaddr(void *vaddr)
 {
   if(!is_user_vaddr(vaddr))
     sys_exit(-1);
+
+  struct page_entry *p = page_find(&thread_current()->page_table, pg_round_down(vaddr));
+  if(p!=NULL){
+    if(page_load(&thread_current()->page_table, p->page, thread_current()->pagedir))
+      return p;
+  }
+  if(vaddr >= thread_current()->esp - 32 && PHYS_BASE - vaddr <= STACK_SIZE){
+    if(stack_growth(&thread_current()->page_table, pg_round_down(vaddr), thread_current()->pagedir)){
+      p = page_find(&thread_current()->page_table, pg_round_down(vaddr));
+      return p;
+    }
+  }
+  sys_exit(-1);
+  return NULL;
 }
 
-void check_bytes(void *addr, unsigned size)
+void check_buffer(void *vaddr, unsigned size, bool writable)
 {
-  void *save = addr;
+  char *save = (char *)vaddr;
   unsigned i;
+  struct page_entry *p;
   for(i=0;i<size;i++){
-    check_vaddr(save);
+    p = check_vaddr(save);
+    if(writable && !p->writable)
+      sys_exit(-1);
     save++;
   }
-  if(pagedir_get_page(thread_current()->pagedir, addr) == NULL)
-    sys_exit(-1);
-}
-
-void check_kernel_ptr(void *vaddr)
-{
-  check_vaddr(vaddr);
-  void *kernel_ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-  if(kernel_ptr == NULL)
-    sys_exit(-1);
 }
 
 struct file*
@@ -64,8 +72,9 @@ get_file(int fd)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  check_bytes(f->esp, 4);
+  check_vaddr(f->esp);
   int selector = *(int *)(f->esp);
+  thread_current()->esp = f->esp;
   switch(selector){
     case SYS_HALT:
     {
@@ -75,7 +84,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXIT:
     {
       int status;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&status, f->esp+4, sizeof(int));
       sys_exit(status);
       break;
@@ -83,16 +92,16 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXEC:
     {
       const char *cmd_line;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&cmd_line, f->esp+4, sizeof(char *));
-      check_kernel_ptr((void *)cmd_line);
+      check_vaddr((void *)cmd_line);
       f->eax = sys_exec(cmd_line);
       break;
     }
     case SYS_WAIT:
     {
       pid_t pid;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&pid, f->esp+4, sizeof(pid_t));
       f->eax = sys_wait(pid);
       break;
@@ -101,36 +110,36 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       const char *file;
       unsigned initial_size;
-      check_bytes(f->esp+4, 4);
-      check_bytes(f->esp+8, 4);
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
       memcpy(&file, f->esp+4, sizeof(char *));
       memcpy(&initial_size, f->esp+8, sizeof(unsigned));
-      check_kernel_ptr((void *)file);
+      check_vaddr((void *)file);
       f->eax = sys_create(file, initial_size);
       break;
     }
     case SYS_REMOVE:
     {
       char *file;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&file, f->esp+4, sizeof(char *));
-      check_kernel_ptr((void *)file);
+      check_vaddr((void *)file);
       f->eax = sys_remove(file);
       break;
     }
     case SYS_OPEN:
     {
       char *file;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&file, f->esp+4, sizeof(char *));
-      check_kernel_ptr((void *)file);
+      check_vaddr((void *)file);
       f->eax = sys_open(file);
       break;
     }
     case SYS_FILESIZE:
     {
       int fd;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&fd, f->esp+4, sizeof(int));
       f->eax = sys_filesize(fd);
       break;
@@ -140,14 +149,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd;
       void *buffer;
       unsigned size;
-      check_bytes(f->esp+4, 4);
-      check_bytes(f->esp+8, 4);
-      check_bytes(f->esp+12, 4);
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
+      check_vaddr(f->esp+12);
       memcpy(&fd, f->esp+4, sizeof(int));
       memcpy(&buffer, f->esp+8, sizeof(void *));
       memcpy(&size, f->esp+12, sizeof(unsigned));
-      check_bytes(buffer, size);
-      check_kernel_ptr(buffer);
+      check_buffer(buffer, size, true);
       f->eax = sys_read(fd, buffer, size);
       break;
     }
@@ -156,14 +164,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd;
       const void *buffer;
       unsigned size;
-      check_bytes(f->esp+4, 4);
-      check_bytes(f->esp+8, 4);
-      check_bytes(f->esp+12, 4);
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
+      check_vaddr(f->esp+12);
       memcpy(&fd, f->esp+4, sizeof(int));
       memcpy(&buffer, f->esp+8, sizeof(void *));
       memcpy(&size, f->esp+12, sizeof(unsigned));
-      check_bytes((void *)buffer, size);
-      check_kernel_ptr((void *)buffer);
+      check_buffer((void *)buffer, size, false);
       f->eax = sys_write(fd, buffer, size);
       break;
     }
@@ -171,8 +178,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       int fd;
       unsigned position;
-      check_bytes(f->esp+4, 4);
-      check_bytes(f->esp+8, 4);
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
       memcpy(&fd, f->esp+4, sizeof(int));
       memcpy(&position, f->esp+8, sizeof(unsigned));
       sys_seek(fd, position);
@@ -181,7 +188,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_TELL:
     {
       int fd;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&fd, f->esp+4, sizeof(int));
       f->eax = sys_tell(fd);
       break;
@@ -189,7 +196,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CLOSE:
     {
       int fd;
-      check_bytes(f->esp+4, 4);
+      check_vaddr(f->esp+4);
       memcpy(&fd, f->esp+4, sizeof(int));
       sys_close(fd);
       break;

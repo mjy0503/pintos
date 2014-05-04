@@ -106,6 +106,7 @@ struct thread
 #endif
 
     struct hash page_table;
+    void *esp;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

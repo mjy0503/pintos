@@ -150,11 +150,13 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  if(user)
+    thread_current()->esp = fault_addr;
   if(not_present && is_user_vaddr(fault_addr)){
     if(page_load(&thread_current()->page_table, fault_addr, thread_current()->pagedir))
       return ;
     if(fault_addr >= f->esp - 32 && PHYS_BASE - fault_addr <= STACK_SIZE){
-      if(stack_growth(&thread_current()->page_table, fault_addr, thread_current()->pagedir))
+      if(stack_growth(&thread_current()->page_table, pg_round_down(fault_addr), thread_current()->pagedir))
         return ;
     }
   }

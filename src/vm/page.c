@@ -81,7 +81,6 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
     return false;
   switch(p->status){
     case FRAME:
-      PANIC("Already in frame!");
       break;
     case SWAP_SLOT:
     {
@@ -97,7 +96,6 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
       if (kpage == NULL)
         return false;
 
-      lock_acquire(&file_lock);
       file_seek(p->file, p->offset);
       if (file_read (p->file, kpage, p->read_bytes) != (int) p->read_bytes)
         {
@@ -105,7 +103,6 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
           frame_free (kpage);
           return false; 
         }
-      lock_release(&file_lock);
       memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
       p->status = FRAME;
@@ -129,4 +126,5 @@ bool stack_growth(struct hash *page_table, void *addr, uint32_t *pagedir){
     return false;
   }
   pagedir_set_page(pagedir, p->page, kpage, p->writable);
+  return true;
 }
