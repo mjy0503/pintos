@@ -99,12 +99,13 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
         return false;
 
       swap_in(p->swap_index, kpage);
-      if(!pagedir_set_page(pagedir, p->page, kpage, p->writable)){
+      if(pagedir_get_page(pagedir, p->page)!=NULL || !pagedir_set_page(pagedir, p->page, kpage, p->writable)){
         frame_free(kpage);
         return false;
       }
 
       p->status = FRAME;
+      p->pin = false;
       break;
     }
     case FILE_SYS:
@@ -125,11 +126,12 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
         }
       memset (kpage + p->read_bytes, 0, p->zero_bytes);
 
-      if(!pagedir_set_page(pagedir, p->page, kpage, p->writable)){
+      if(pagedir_get_page(pagedir, p->page)!=NULL || !pagedir_set_page(pagedir, p->page, kpage, p->writable)){
         frame_free(kpage);
         return false;
       }
       p->status = FRAME;
+      p->pin = false;
       break;
     }
     default:
@@ -147,6 +149,10 @@ bool stack_growth(struct hash *page_table, void *addr, uint32_t *pagedir){
     page_delete(page_table, p);
     return false;
   }
-  pagedir_set_page(pagedir, p->page, kpage, p->writable);
+  if(pagedir_get_page(pagedir, p->page)!=NULL || !pagedir_set_page(pagedir, p->page, kpage, p->writable)){
+    page_delete(page_table, p);
+    frame_free(kpage);
+    return false;
+  }
   return true;
 }

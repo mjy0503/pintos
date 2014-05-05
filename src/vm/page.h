@@ -15,6 +15,7 @@ struct page_entry{
   void *page;                     /* virtual address */
   enum page_stat status;          /* FILE, SWAP */
   bool writable;                  /* writable page */
+  bool pin;                       /* pinning */
 
   /* filesys */
   struct file *file;              /* reading file */
