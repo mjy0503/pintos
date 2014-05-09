@@ -23,10 +23,6 @@ void page_action_func(struct hash_elem *hash_elem, void *aux UNUSED){
   struct page_entry *p = hash_entry(hash_elem, struct page_entry, hash_elem);
   if(p->status == SWAP_SLOT)
     swap_free(p->swap_index);
-  if(p->status == FRAME){
-    frame_free(pagedir_get_page(thread_current()->pagedir, p->page));
-    pagedir_clear_page(thread_current()->pagedir, p->page);
-  }
   free(p);
 }
 
