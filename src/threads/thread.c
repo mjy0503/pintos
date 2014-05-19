@@ -9,7 +9,6 @@
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
-#include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -190,6 +189,9 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   page_table_init(&t->page_table);
+  lock_init(&t->pagedir_lock);
+  list_init(&t->mmap_list);
+  t->mmap_id = 1;
   tid = t->tid = allocate_tid ();
 
   /* Stack frame for kernel_thread(). */

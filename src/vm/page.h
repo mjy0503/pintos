@@ -1,13 +1,16 @@
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 #include <hash.h>
+#include <list.h>
 #include "filesys/file.h"
+#include "userprog/syscall.h"
 
 enum page_stat{
   FRAME,
   SWAP_SLOT,
   FILE_SYS,
-  ALL_ZERO
+  MMAP,
+  FRAME_MMAP
 };
 
 struct page_entry{
@@ -26,6 +29,14 @@ struct page_entry{
   size_t swap_index;              /* start index of swap disk */
 
   struct hash_elem hash_elem;     /* hash element */
+};
+
+struct mmap_entry{
+  mapid_t mmap_id;
+  struct file *file;
+  void *addr;
+  uint32_t size;
+  struct list_elem elem;
 };
 
 bool page_table_init(struct hash *page_table);

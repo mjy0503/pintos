@@ -5,6 +5,7 @@
 #define USERPROG_SYSCALL_H
 
 #define pid_t int
+#define mapid_t int
 
 struct file_fd{
   int fd;
@@ -29,5 +30,7 @@ int sys_write (int fd, const void *buffer, unsigned size);
 void sys_seek (int fd, unsigned position);
 unsigned sys_tell (int fd);
 void sys_close (int fd);
+mapid_t sys_mmap(int fd, void *addr);
+void sys_munmap(mapid_t mapping);
 
 #endif /* userprog/syscall.h */

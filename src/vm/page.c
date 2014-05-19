@@ -1,7 +1,6 @@
 #include "vm/page.h"
 #include "vm/swap.h"
 #include "vm/frame.h"
-#include "userprog/syscall.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
 #include "threads/thread.h"
@@ -23,6 +22,13 @@ void page_action_func(struct hash_elem *hash_elem, void *aux UNUSED){
   struct page_entry *p = hash_entry(hash_elem, struct page_entry, hash_elem);
   if(p->status == SWAP_SLOT)
     swap_free(p->swap_index);
+  else if(p->status == FRAME_MMAP){
+    p->pin = true;
+    lock_acquire(&file_lock);
+    if(thread_current()->pagedir != NULL && pagedir_is_dirty(thread_current()->pagedir, p->page))
+      file_write_at(p->file, p->page, PGSIZE, p->offset);
+    lock_release(&file_lock);
+  }
   free(p);
 }
 
@@ -37,22 +43,24 @@ void page_table_destroy(struct hash *page_table){
 struct page_entry *page_create(struct hash *page_table, void *addr, bool writable){
   struct page_entry *p = malloc(sizeof(struct page_entry));
   if(p == NULL)
-    return false;
+    return NULL;
 
   p->page = pg_round_down(addr);
   p->status = FRAME;
   p->writable = writable;
   p->file = NULL;
 
-  if(hash_insert(page_table, &p->hash_elem) != NULL)
+  if(hash_insert(page_table, &p->hash_elem) != NULL){
     free(p);
+    return NULL;
+  }
   return p;
 }
 
 struct page_entry *page_create_file(struct hash *page_table, void *addr, bool writable, struct file *file, off_t offset, uint32_t read_bytes, uint32_t zero_bytes){
   struct page_entry *p = malloc(sizeof(struct page_entry));
   if(p == NULL)
-    return false;
+    return NULL;
 
   p->page = pg_round_down(addr);
   p->status = FILE_SYS;
@@ -62,8 +70,11 @@ struct page_entry *page_create_file(struct hash *page_table, void *addr, bool wr
   p->read_bytes = read_bytes;
   p->zero_bytes = zero_bytes;
 
-  if(hash_insert(page_table, &p->hash_elem) != NULL)
+  if(hash_insert(page_table, &p->hash_elem) != NULL){
     free(p);
+    return NULL;
+  }
+
   return p;
 }
 
@@ -130,6 +141,34 @@ bool page_load(struct hash *page_table, void *addr, uint32_t *pagedir){
       p->pin = false;
       break;
     }
+    case MMAP:
+    {
+      uint8_t *kpage;
+      if(p->zero_bytes == PGSIZE)
+        kpage = frame_alloc(PAL_USER | PAL_ZERO, p);
+      else
+        kpage = frame_alloc(PAL_USER, p);
+      if (kpage == NULL)
+        return false;
+
+      file_seek(p->file, p->offset);
+      if (file_read (p->file, kpage, p->read_bytes) != (int) p->read_bytes)
+        {
+          frame_free (kpage);
+          return false; 
+        }
+      memset (kpage + p->read_bytes, 0, p->zero_bytes);
+
+      if(pagedir_get_page(pagedir, p->page)!=NULL || !pagedir_set_page(pagedir, p->page, kpage, p->writable)){
+        frame_free(kpage);
+        return false;
+      }
+      p->status = FRAME_MMAP;
+      p->pin = false;
+      break;
+    }
+    case FRAME_MMAP:
+      break;
     default:
       PANIC("WHAT STATUS OF LOAD?");
   }

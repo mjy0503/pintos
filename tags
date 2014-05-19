@@ -9,7 +9,6 @@ ACTUAL	src/tests/vm/child-mm-wrt.c	12;"	d	file:
 ACTUAL	src/tests/vm/mmap-close.c	10;"	d	file:
 ACTUAL	src/tests/vm/mmap-unmap.c	9;"	d	file:
 ACTUAL	src/tests/vm/mmap-write.c	11;"	d	file:
-ALL_ZERO	src/vm/page.h	/^  ALL_ZERO$/;"	e	enum:page_stat
 ARENA_MAGIC	src/threads/malloc.c	47;"	d	file:
 ASSERT	src/lib/debug.h	26;"	d
 ASSERT	src/lib/debug.h	30;"	d
@@ -110,7 +109,7 @@ FILE_CNT	src/tests/filesys/extended/grow-dir-lg.c	4;"	d	file:
 FILE_CNT	src/tests/filesys/extended/grow-root-lg.c	3;"	d	file:
 FILE_CNT	src/tests/filesys/extended/grow-root-sm.c	3;"	d	file:
 FILE_SIZE	src/tests/filesys/extended/grow-two-files.c	9;"	d	file:
-FILE_SYS	src/vm/page.h	/^  FILE_SYS,$/;"	e	enum:page_stat
+FILE_SYS	src/vm/page.h	/^  FILE_SYS$/;"	e	enum:page_stat
 FLAG_IF	src/threads/flags.h	6;"	d
 FLAG_MBS	src/threads/flags.h	5;"	d
 FNV_32_BASIS	src/lib/kernel/hash.c	262;"	d	file:
@@ -214,16 +213,16 @@ PANIC	src/lib/debug.h	14;"	d
 PDBITS	src/threads/pte.h	28;"	d
 PDMASK	src/threads/pte.h	29;"	d
 PDSHIFT	src/threads/pte.h	27;"	d
-PE32Ax	src/userprog/process.c	233;"	d	file:
-PE32Hx	src/userprog/process.c	235;"	d	file:
-PE32Ox	src/userprog/process.c	234;"	d	file:
-PE32Wx	src/userprog/process.c	232;"	d	file:
+PE32Ax	src/userprog/process.c	242;"	d	file:
+PE32Hx	src/userprog/process.c	244;"	d	file:
+PE32Ox	src/userprog/process.c	243;"	d	file:
+PE32Wx	src/userprog/process.c	241;"	d	file:
 PF_P	src/userprog/exception.h	5;"	d
-PF_R	src/userprog/process.c	285;"	d	file:
+PF_R	src/userprog/process.c	294;"	d	file:
 PF_U	src/userprog/exception.h	7;"	d
 PF_W	src/userprog/exception.h	6;"	d
-PF_W	src/userprog/process.c	284;"	d	file:
-PF_X	src/userprog/process.c	283;"	d	file:
+PF_W	src/userprog/process.c	293;"	d	file:
+PF_X	src/userprog/process.c	292;"	d	file:
 PGBITS	src/threads/vaddr.h	19;"	d
 PGMASK	src/threads/vaddr.h	21;"	d
 PGSHIFT	src/threads/vaddr.h	18;"	d
@@ -291,14 +290,14 @@ PTRDIFF_MAX	src/lib/stdint.h	47;"	d
 PTRDIFF_MIN	src/lib/stdint.h	46;"	d
 PTSHIFT	src/threads/pte.h	21;"	d
 PTSPAN	src/threads/pte.h	23;"	d
-PT_DYNAMIC	src/userprog/process.c	275;"	d	file:
-PT_INTERP	src/userprog/process.c	276;"	d	file:
-PT_LOAD	src/userprog/process.c	274;"	d	file:
-PT_NOTE	src/userprog/process.c	277;"	d	file:
-PT_NULL	src/userprog/process.c	273;"	d	file:
-PT_PHDR	src/userprog/process.c	279;"	d	file:
-PT_SHLIB	src/userprog/process.c	278;"	d	file:
-PT_STACK	src/userprog/process.c	280;"	d	file:
+PT_DYNAMIC	src/userprog/process.c	284;"	d	file:
+PT_INTERP	src/userprog/process.c	285;"	d	file:
+PT_LOAD	src/userprog/process.c	283;"	d	file:
+PT_NOTE	src/userprog/process.c	286;"	d	file:
+PT_NULL	src/userprog/process.c	282;"	d	file:
+PT_PHDR	src/userprog/process.c	288;"	d	file:
+PT_SHLIB	src/userprog/process.c	287;"	d	file:
+PT_STACK	src/userprog/process.c	289;"	d	file:
 Prev	src/tests/Algorithm/Diff.pm	/^sub Prev {$/;"	s
 QUEUE	src/devices/serial.c	/^static enum { UNINIT, POLL, QUEUE } mode;$/;"	e	enum:__anon1	file:
 RBR_REG	src/devices/serial.c	21;"	d	file:
@@ -313,6 +312,7 @@ Range	src/tests/Algorithm/Diff.pm	/^sub Range {$/;"	s
 Reset	src/tests/Algorithm/Diff.pm	/^sub Reset$/;"	s
 SCHAR_MAX	src/lib/limits.h	6;"	d
 SCHAR_MIN	src/lib/limits.h	7;"	d
+SECTOR_NUM	src/vm/swap.c	11;"	d	file:
 SEL_CNT	src/userprog/gdt.h	11;"	d
 SEL_KCSEG	src/threads/loader.h	35;"	d
 SEL_KDSEG	src/threads/loader.h	36;"	d
@@ -659,7 +659,7 @@ chars	src/devices/kbd.c	/^    const char *chars;          \/* chars[0] has scanc
 chdir	src/lib/user/syscall.c	/^chdir (const char *dir)$/;"	f
 check_alarm	src/tests/threads/alarm.pm	/^sub check_alarm {$/;"	s
 check_archive	src/tests/tests.pm	/^sub check_archive {$/;"	s
-check_bytes	src/userprog/syscall.c	/^void check_bytes(void *addr, unsigned size)$/;"	f
+check_buffer	src/userprog/syscall.c	/^void check_buffer(void *vaddr, unsigned size, bool writable)$/;"	f
 check_device_type	src/devices/disk.c	/^check_device_type (struct disk *d) $/;"	f	file:
 check_expected	src/tests/tests.pm	/^sub check_expected {$/;"	s
 check_file	src/tests/lib.c	/^check_file (const char *file_name, const void *buf, size_t size) $/;"	f
@@ -671,7 +671,7 @@ check_for_triple_fault	src/tests/tests.pm	/^sub check_for_triple_fault {$/;"	s
 check_mlfqs_fair	src/tests/threads/mlfqs.pm	/^sub check_mlfqs_fair {$/;"	s
 check_process_death	src/tests/vm/process_death.pm	/^sub check_process_death {$/;"	s
 check_tell	src/tests/filesys/extended/grow-tell.c	/^check_tell (int fd, long ofs) $/;"	f	file:
-check_vaddr	src/userprog/syscall.c	/^void check_vaddr(void *vaddr)$/;"	f
+check_vaddr	src/userprog/syscall.c	/^struct page_entry *check_vaddr(void *vaddr)$/;"	f
 checkf	src/tests/internal/stdio.c	/^checkf (const char *expect, const char *format, ...) $/;"	f	file:
 child_list	src/threads/thread.h	/^    struct list child_list;             \/* list of childs *\/$/;"	m	struct:thread	typeref:struct:thread::list
 child_termination_mode	src/tests/userprog/no-vm/multi-oom.c	/^enum child_termination_mode { RECURSE, CRASH };$/;"	g	file:
@@ -818,10 +818,12 @@ elem	src/threads/thread.h	/^    struct list_elem elem;              \/* List ele
 elem	src/userprog/process.h	/^  struct list_elem elem;    \/* elem of child_list *\/$/;"	m	struct:process_stat	typeref:struct:process_stat::list_elem
 elem	src/userprog/syscall.h	/^  struct list_elem elem;$/;"	m	struct:file_fd	typeref:struct:file_fd::list_elem
 elem	src/vm/frame.h	/^  struct list_elem elem;$/;"	m	struct:frame_entry	typeref:struct:frame_entry::list_elem
+elem	src/vm/page.h	/^  struct list_elem elem;$/;"	m	struct:mmap_entry	typeref:struct:mmap_entry::list_elem
 elem_cnt	src/lib/kernel/bitmap.c	/^elem_cnt (size_t bit_cnt)$/;"	f	file:
 elem_cnt	src/lib/kernel/hash.h	/^    size_t elem_cnt;            \/* Number of elements in table. *\/$/;"	m	struct:hash
 elem_idx	src/lib/kernel/bitmap.c	/^elem_idx (size_t bit_idx) $/;"	f	file:
 elem_type	src/lib/kernel/bitmap.c	/^typedef unsigned long elem_type;$/;"	t	file:
+end_addr	src/vm/page.h	/^  void *end_addr;$/;"	m	struct:mmap_entry
 error_code	src/threads/interrupt.h	/^    uint32_t error_code;        \/* Error code. *\/$/;"	m	struct:intr_frame
 es	src/threads/interrupt.h	/^    uint16_t es, :16;           \/* Saved ES segment register. *\/$/;"	m	struct:intr_frame
 es	src/userprog/tss.c	/^    uint16_t es, :16;$/;"	m	struct:tss	file:
@@ -829,6 +831,7 @@ esi	src/threads/interrupt.h	/^    uint32_t esi;               \/* Saved ESI. *\/
 esi	src/threads/switch.h	/^    uint32_t esi;               \/*  4: Saved %esi. *\/$/;"	m	struct:switch_threads_frame
 esi	src/userprog/tss.c	/^    uint32_t esp, ebp, esi, edi;$/;"	m	struct:tss	file:
 esp	src/threads/interrupt.h	/^    void *esp;                  \/* Saved stack pointer. *\/$/;"	m	struct:intr_frame
+esp	src/threads/thread.h	/^    void *esp;$/;"	m	struct:thread
 esp	src/userprog/tss.c	/^    uint32_t esp, ebp, esi, edi;$/;"	m	struct:tss	file:
 esp0	src/userprog/tss.c	/^    void *esp0;                         \/* Ring 0 stack virtual address. *\/$/;"	m	struct:tss	file:
 esp1	src/userprog/tss.c	/^    void *esp1;$/;"	m	struct:tss	file:
@@ -857,6 +860,7 @@ fd	src/userprog/syscall.h	/^  int fd;$/;"	m	struct:file_fd
 file	src/filesys/file.c	/^struct file $/;"	s	file:
 file	src/userprog/syscall.h	/^  struct file *file;$/;"	m	struct:file_fd	typeref:struct:file_fd::file
 file	src/vm/page.h	/^  struct file *file;              \/* reading file *\/$/;"	m	struct:page_entry	typeref:struct:page_entry::file
+file	src/vm/page.h	/^  struct file *file;$/;"	m	struct:mmap_entry	typeref:struct:mmap_entry::file
 file_allow_write	src/filesys/file.c	/^file_allow_write (struct file *file) $/;"	f
 file_close	src/filesys/file.c	/^file_close (struct file *file) $/;"	f
 file_deny_write	src/filesys/file.c	/^file_deny_write (struct file *file) $/;"	f
@@ -906,7 +910,7 @@ format_string	src/lib/stdio.c	/^format_string (const char *string, int length,$/
 frame	src/vm/frame.h	/^  void *frame;$/;"	m	struct:frame_entry
 frame_alloc	src/vm/frame.c	/^void *frame_alloc(enum palloc_flags flags, struct page_entry *p){$/;"	f
 frame_entry	src/vm/frame.h	/^struct frame_entry{$/;"	s
-frame_evict	src/vm/frame.c	/^void frame_evict(){$/;"	f
+frame_evict	src/vm/frame.c	/^bool frame_evict(enum palloc_flags flags){$/;"	f
 frame_free	src/vm/frame.c	/^void frame_free(void *frame){$/;"	f
 frame_init	src/vm/frame.c	/^void frame_init(){$/;"	f
 frame_lock	src/vm/frame.c	/^struct lock frame_lock;$/;"	v	typeref:struct:lock
@@ -942,7 +946,6 @@ get_boundary_area	src/tests/userprog/boundary.c	/^get_boundary_area (void) $/;"	
 get_core_output	src/tests/tests.pm	/^sub get_core_output {$/;"	s
 get_file	src/userprog/syscall.c	/^get_file(int fd)$/;"	f
 get_inumber	src/examples/pwd.c	/^get_inumber (const char *file_name, int *inum) $/;"	f	file:
-get_kernel_ptr	src/userprog/syscall.c	/^void* get_kernel_ptr(void *vaddr)$/;"	f
 get_load_average	src/utils/pintos	/^sub get_load_average {$/;"	s
 get_process	src/userprog/process.c	/^struct process_stat* get_process(pid_t pid){$/;"	f
 get_scratch_file	src/utils/pintos	/^sub get_scratch_file {$/;"	s
@@ -1295,6 +1298,9 @@ mlfqs_expected_load	src/tests/threads/mlfqs.pm	/^sub mlfqs_expected_load {$/;"	s
 mlfqs_expected_ticks	src/tests/threads/mlfqs.pm	/^sub mlfqs_expected_ticks {$/;"	s
 mlfqs_row	src/tests/threads/mlfqs.pm	/^sub mlfqs_row {$/;"	s
 mmap	src/lib/user/syscall.c	/^mmap (int fd, void *addr)$/;"	f
+mmap_entry	src/vm/page.h	/^struct mmap_entry{$/;"	s
+mmap_id	src/vm/page.h	/^  mapid_t mmap_id;$/;"	m	struct:mmap_entry
+mmap_list	src/threads/thread.h	/^    struct list mmap_list;$/;"	m	struct:thread	typeref:struct:thread::list
 mode	src/devices/serial.c	/^static enum { UNINIT, POLL, QUEUE } mode;$/;"	v	typeref:enum:__anon1	file:
 move_cursor	src/devices/vga.c	/^move_cursor (void) $/;"	f	file:
 msg	src/tests/lib.c	/^msg (const char *format, ...) $/;"	f
@@ -1360,7 +1366,7 @@ p_vaddr	src/userprog/process.c	/^    Elf32_Addr p_vaddr;$/;"	m	struct:Elf32_Phdr
 page	src/vm/frame.h	/^  struct page_entry *page;$/;"	m	struct:frame_entry	typeref:struct:frame_entry::page_entry
 page	src/vm/page.h	/^  void *page;                     \/* virtual address *\/$/;"	m	struct:page_entry
 page_action_func	src/vm/page.c	/^void page_action_func(struct hash_elem *hash_elem, void *aux UNUSED){$/;"	f
-page_create	src/vm/page.c	/^struct page_entry *page_create(struct hash *page_table, void *addr, bool writable, bool status){ \/\/ 0 = FRAME, 1 = ZERO$/;"	f
+page_create	src/vm/page.c	/^struct page_entry *page_create(struct hash *page_table, void *addr, bool writable){$/;"	f
 page_create_file	src/vm/page.c	/^struct page_entry *page_create_file(struct hash *page_table, void *addr, bool writable, struct file *file, off_t offset, uint32_t read_bytes, uint32_t zero_bytes){$/;"	f
 page_delete	src/vm/page.c	/^void page_delete(struct hash *page_table, struct page_entry *p){$/;"	f
 page_entry	src/vm/page.h	/^struct page_entry{$/;"	s
@@ -1417,6 +1423,7 @@ pid	src/userprog/process.h	/^  pid_t pid;                \/* process id *\/$/;"	
 pid_t	src/lib/user/syscall.h	/^typedef int pid_t;$/;"	t
 pid_t	src/threads/thread.h	21;"	d
 pid_t	src/userprog/syscall.h	7;"	d
+pin	src/vm/page.h	/^  bool pin;                       \/* pinning *\/$/;"	m	struct:page_entry
 place	src/examples/insult.c	/^char *place[] =$/;"	v
 placeLoc	src/examples/insult.c	/^char placeLoc[] = { 5, 0, 3, 7, 11, 17, 20 };$/;"	v
 player_unsup	src/utils/pintos	/^sub player_unsup {$/;"	s
@@ -1609,7 +1616,7 @@ ss0	src/userprog/tss.c	/^    uint16_t ss0, :16;                  \/* Ring 0 stac
 ss1	src/userprog/tss.c	/^    uint16_t ss1, :16;$/;"	m	struct:tss	file:
 ss2	src/userprog/tss.c	/^    uint16_t ss2, :16;$/;"	m	struct:tss	file:
 stack	src/threads/thread.h	/^    uint8_t *stack;                     \/* Saved stack pointer. *\/$/;"	m	struct:thread
-stack_growth	src/vm/page.c	/^bool stack_growth(struct hash *page_table, void *addr){$/;"	f
+stack_growth	src/vm/page.c	/^bool stack_growth(struct hash *page_table, void *addr, uint32_t *pagedir){$/;"	f
 start	src/examples/insult.c	/^char *start[] =$/;"	v
 start	src/filesys/inode.c	/^    disk_sector_t start;                \/* First data sector. *\/$/;"	m	struct:inode_disk	file:
 start	src/tests/threads/alarm-simultaneous.c	/^    int64_t start;              \/* Current time at start of test. *\/$/;"	m	struct:sleep_test	file:
@@ -1617,6 +1624,7 @@ start	src/tests/threads/alarm-wait.c	/^    int64_t start;              \/* Curre
 start	src/threads/loader.S	/^start:$/;"	l
 start	src/threads/start.S	/^start:	call main$/;"	l
 startLoc	src/examples/insult.c	/^char startLoc[] = { 3, 0, 4, 7, 16 };$/;"	v
+start_addr	src/vm/page.h	/^  void *start_addr;$/;"	m	struct:mmap_entry
 start_process	src/userprog/process.c	/^start_process (void *f_name)$/;"	f	file:
 start_time	src/tests/threads/mlfqs-fair.c	/^    int64_t start_time;$/;"	m	struct:thread_info	file:
 start_time	src/tests/threads/mlfqs-load-60.c	/^static int64_t start_time;$/;"	v	file:
@@ -1645,10 +1653,16 @@ stuffLoc	src/examples/insult.c	/^char stuffLoc[] = { 14, 0, 1, 3, 4, 5, 6, 8, 10
 swap	src/lib/kernel/list.c	/^swap (struct list_elem **a, struct list_elem **b) $/;"	f	file:
 swap	src/tests/lib.c	/^swap (void *a_, void *b_, size_t size) $/;"	f	file:
 swap	src/tests/vm/qsort.c	/^swap (unsigned char *a, unsigned char *b) $/;"	f	file:
+swap_bitmap	src/vm/swap.c	/^struct bitmap *swap_bitmap;$/;"	v	typeref:struct:bitmap
 swap_byte	src/lib/random.c	/^swap_byte (uint8_t *a, uint8_t *b) $/;"	f	file:
 swap_byte	src/tests/arc4.c	/^swap_byte (uint8_t *a, uint8_t *b)$/;"	f	file:
-swap_in	src/vm/swap.c	/^void swap_in(){$/;"	f
-swap_out	src/vm/swap.c	/^void swap_out(){$/;"	f
+swap_disk	src/vm/swap.c	/^struct disk *swap_disk;$/;"	v	typeref:struct:disk
+swap_free	src/vm/swap.c	/^void swap_free(size_t swap_index){$/;"	f
+swap_in	src/vm/swap.c	/^void swap_in(size_t swap_index, void *addr){ \/\/ disk -> memory$/;"	f
+swap_index	src/vm/page.h	/^  size_t swap_index;              \/* start index of swap disk *\/$/;"	m	struct:page_entry
+swap_init	src/vm/swap.c	/^void swap_init(void){$/;"	f
+swap_lock	src/vm/swap.c	/^struct lock swap_lock;$/;"	v	typeref:struct:lock
+swap_out	src/vm/swap.c	/^size_t swap_out(void *addr){ \/\/ memory -> disk$/;"	f
 switch_entry	src/threads/switch.S	/^switch_entry:$/;"	l
 switch_entry_frame	src/threads/switch.h	/^struct switch_entry_frame$/;"	s
 switch_threads	src/threads/switch.S	/^switch_threads:$/;"	l
@@ -1659,6 +1673,8 @@ sys_exec	src/userprog/syscall.c	/^pid_t sys_exec (const char *cmd_line)$/;"	f
 sys_exit	src/userprog/syscall.c	/^void sys_exit (int status)$/;"	f
 sys_filesize	src/userprog/syscall.c	/^int sys_filesize (int fd)$/;"	f
 sys_halt	src/userprog/syscall.c	/^void sys_halt (void)$/;"	f
+sys_mmap	src/userprog/syscall.c	/^mapid_t sys_mmap(int fd, void *addr)$/;"	f
+sys_munmap	src/userprog/syscall.c	/^void sys_munmap(mapid_t mapping)$/;"	f
 sys_open	src/userprog/syscall.c	/^int sys_open (const char *file)$/;"	f
 sys_read	src/userprog/syscall.c	/^int sys_read (int fd, void *buffer, unsigned size)$/;"	f
 sys_remove	src/userprog/syscall.c	/^bool sys_remove (const char *file)$/;"	f
@@ -1837,6 +1853,7 @@ test_sleep	src/tests/threads/alarm-simultaneous.c	/^test_sleep (int thread_cnt, 
 test_sleep	src/tests/threads/alarm-wait.c	/^test_sleep (int thread_cnt, int iterations) $/;"	f	file:
 tests	src/tests/threads/tests.c	/^static const struct test tests[] = $/;"	v	typeref:struct:test	file:
 thread	src/threads/thread.h	/^struct thread$/;"	s
+thread	src/vm/frame.h	/^  struct thread *thread;$/;"	m	struct:frame_entry	typeref:struct:frame_entry::thread
 thread_block	src/threads/thread.c	/^thread_block (void) $/;"	f
 thread_create	src/threads/thread.c	/^thread_create (const char *name, int priority,$/;"	f
 thread_current	src/threads/thread.c	/^thread_current (void) $/;"	f

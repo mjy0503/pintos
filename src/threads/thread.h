@@ -5,6 +5,7 @@
 #include <list.h>
 #include <hash.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -97,6 +98,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct lock pagedir_lock;           /* lock of Page directory */
     struct file *exec_file;             /* excute file for allow_write */
     struct list file_list;              /* list of files */
     int maxfd;                          /* max of fd */
@@ -104,9 +106,10 @@ struct thread
     struct process_stat *process;       /* status of process */
 
 #endif
-
-    struct hash page_table;
-    void *esp;
+    int mmap_id;                        /* maximum mmaping id */
+    struct list mmap_list;              /* list of mmap_entry */
+    struct hash page_table;             /* supplement page_entry table */
+    void *esp;                          /* process's stack pointer */
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

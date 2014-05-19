@@ -161,7 +161,14 @@ process_exit (void)
   struct process_stat *process = NULL;
   struct file_fd *del_file_fd;
   struct list_elem *e;
+  struct mmap_entry *m;
   uint32_t *pd;
+  
+  while(!list_empty(&curr->mmap_list)){
+    e = list_front(&curr->mmap_list);
+    m = list_entry(e, struct mmap_entry, elem);
+    sys_munmap(m->mmap_id);
+  }
 
   lock_acquire(&file_lock);
   for(e = list_begin(&curr->file_list); e != list_end(&curr->file_list);){
@@ -208,8 +215,10 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
+      lock_acquire(&curr->pagedir_lock);
       curr->pagedir = NULL;
       pagedir_activate (NULL);
+      lock_release(&curr->pagedir_lock);
       pagedir_destroy (pd);
     }
 }
@@ -523,6 +532,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
+  uint32_t size = read_bytes;
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -534,8 +544,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       struct page_entry *p = page_create_file(&thread_current()->page_table, upage, writable, file, ofs, page_read_bytes, page_zero_bytes);
-      if(p == NULL)
+      if(p == NULL){
+        while(read_bytes != size){
+          read_bytes += PGSIZE;
+          upage -= PGSIZE;
+          page_delete(&thread_current()->page_table, page_find(&thread_current()->page_table, upage));
+        }
         return false;
+      }
 
       /* Advance. */
       read_bytes -= page_read_bytes;
