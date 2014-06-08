@@ -85,7 +85,6 @@ void cache_write(disk_sector_t sector, const void *buffer, off_t ofs, off_t size
     if(ofs>0 || size<DISK_SECTOR_SIZE)
       disk_read(filesys_disk, c->sector, c->data);
   }
-
   c->dirty = 1;
   memcpy(c->data+ofs, buffer, size);
   lock_release(&cache_lock);

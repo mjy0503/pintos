@@ -29,7 +29,7 @@ BUF_SIZE	src/tests/filesys/extended/syn-rw.h	6;"	d
 BUILD_SUBDIRS	src/Makefile	/^BUILD_SUBDIRS = threads userprog vm filesys$/;"	m
 Base	src/tests/Algorithm/Diff.pm	/^sub Base$/;"	s
 C	src/examples/matmult.c	/^int C[DIM][DIM];$/;"	v
-CACHE_SIZE	src/filesys/cache.c	5;"	d	file:
+CACHE_SIZE	src/filesys/cache.c	8;"	d	file:
 CC	src/utils/Makefile	/^CC = gcc$/;"	m
 CFLAGS	src/utils/Makefile	/^CFLAGS = -Wall -W$/;"	m
 CHANNEL_CNT	src/devices/disk.c	82;"	d	file:
@@ -83,8 +83,10 @@ DEV_LBA	src/devices/disk.c	41;"	d	file:
 DEV_MBS	src/devices/disk.c	40;"	d	file:
 DIM	src/examples/matmult.c	29;"	d	file:
 DIRECTORY	src/tests/filesys/extended/grow-dir-lg.c	5;"	d	file:
+DIRECT_INODE	src/filesys/inode.c	14;"	d	file:
 DISK_SECTOR_SIZE	src/devices/disk.h	8;"	d
 DIV_ROUND_UP	src/lib/round.h	10;"	d
+DOUBLE_INDIRECT_INODE	src/filesys/inode.c	16;"	d	file:
 Die	src/tests/Algorithm/Diff.pm	/^sub Die$/;"	s
 Diff	src/tests/Algorithm/Diff.pm	/^sub Diff {$/;"	s
 ELEM_BITS	src/lib/kernel/bitmap.c	22;"	d	file:
@@ -128,7 +130,8 @@ IER_RECV	src/devices/serial.c	37;"	d	file:
 IER_REG	src/devices/serial.c	23;"	d	file:
 IER_XMIT	src/devices/serial.c	38;"	d	file:
 IIR_REG	src/devices/serial.c	30;"	d	file:
-INODE_MAGIC	src/filesys/inode.c	11;"	d	file:
+INODE_MAGIC	src/filesys/inode.c	12;"	d	file:
+INODE_MAX_LEVEL	src/filesys/inode.h	8;"	d
 INT	src/lib/stdio.c	/^        INT = 3,                \/* (none) *\/$/;"	e	enum:printf_conversion::__anon3	file:
 INT16_MAX	src/lib/stdint.h	9;"	d
 INT16_MIN	src/lib/stdint.h	10;"	d
@@ -328,6 +331,7 @@ SHORT	src/lib/stdio.c	/^        SHORT = 2,              \/* h *\/$/;"	e	enum:pri
 SHRT_MAX	src/lib/limits.h	18;"	d
 SHRT_MIN	src/lib/limits.h	19;"	d
 SIGVTALRM	src/utils/pintos	/^sub SIGVTALRM {$/;"	s
+SINGLE_INDIRECT_INODE	src/filesys/inode.c	15;"	d	file:
 SIZE	src/tests/vm/child-linear.c	12;"	d	file:
 SIZE	src/tests/vm/mmap-shuffle.c	12;"	d	file:
 SIZE	src/tests/vm/page-linear.c	9;"	d	file:
@@ -658,7 +662,7 @@ cache_init	src/filesys/cache.c	/^void cache_init(){$/;"	f
 cache_list	src/filesys/cache.c	/^struct list cache_list;$/;"	v	typeref:struct:list
 cache_lock	src/filesys/cache.c	/^struct lock cache_lock;$/;"	v	typeref:struct:lock
 cache_read	src/filesys/cache.c	/^void cache_read(disk_sector_t sector, void *buffer, off_t ofs, off_t size){$/;"	f
-cache_write	src/filesys/cache.c	/^void cache_write(disk_sector_t sector, void *buffer, off_t ofs, off_t size){$/;"	f
+cache_write	src/filesys/cache.c	/^void cache_write(disk_sector_t sector, const void *buffer, off_t ofs, off_t size){$/;"	f
 calloc	src/threads/malloc.c	/^calloc (size_t a, size_t b) $/;"	f
 capacity	src/devices/disk.c	/^    disk_sector_t capacity;     \/* Capacity in sectors (if is_ata). *\/$/;"	m	struct:disk	file:
 caps_lock	src/devices/kbd.c	/^static bool caps_lock;$/;"	v	file:
@@ -722,6 +726,7 @@ consume_some_resources	src/tests/userprog/no-vm/multi-oom.c	/^consume_some_resou
 consume_some_resources_and_die	src/tests/userprog/no-vm/multi-oom.c	/^consume_some_resources_and_die (int seed)$/;"	f	file:
 copy_file	src/utils/pintos	/^sub copy_file {$/;"	s
 copy_string_across_boundary	src/tests/userprog/boundary.c	/^copy_string_across_boundary (const char *src) $/;"	f
+count	src/filesys/inode.c	/^    uint32_t count;                     \/* number of inode *\/$/;"	m	struct:inode_disk	file:
 cp_SRC	src/examples/Makefile	/^cp_SRC = cp.c$/;"	m
 cpu	src/utils/pintos	/^cpu: ips=1000000$/;"	l
 cr3	src/userprog/tss.c	/^    uint32_t cr3;$/;"	m	struct:tss	file:
@@ -943,7 +948,7 @@ free_map_create	src/filesys/free-map.c	/^free_map_create (void) $/;"	f
 free_map_file	src/filesys/free-map.c	/^static struct file *free_map_file;   \/* Free map file. *\/$/;"	v	typeref:struct:file	file:
 free_map_init	src/filesys/free-map.c	/^free_map_init (void) $/;"	f
 free_map_open	src/filesys/free-map.c	/^free_map_open (void) $/;"	f
-free_map_release	src/filesys/free-map.c	/^free_map_release (disk_sector_t sector, size_t cnt)$/;"	f
+free_map_release	src/filesys/free-map.c	/^free_map_release (disk_sector_t *sectorp, size_t cnt)$/;"	f
 fs	src/threads/interrupt.h	/^    uint16_t fs, :16;           \/* Saved FS segment register. *\/$/;"	m	struct:intr_frame
 fs	src/userprog/tss.c	/^    uint16_t fs, :16;$/;"	m	struct:tss	file:
 fsutil_cat	src/filesys/fsutil.c	/^fsutil_cat (char **argv)$/;"	f
@@ -1045,10 +1050,13 @@ inode	src/filesys/file.c	/^    struct inode *inode;        \/* File's inode. *\/
 inode	src/filesys/inode.c	/^struct inode $/;"	s	file:
 inode_allow_write	src/filesys/inode.c	/^inode_allow_write (struct inode *inode) $/;"	f
 inode_close	src/filesys/inode.c	/^inode_close (struct inode *inode) $/;"	f
-inode_create	src/filesys/inode.c	/^inode_create (disk_sector_t sector, off_t length)$/;"	f
+inode_create	src/filesys/inode.c	/^inode_create (disk_sector_t sector, off_t length, int level)$/;"	f
+inode_delete	src/filesys/inode.c	/^void inode_delete(disk_sector_t sector){$/;"	f
 inode_deny_write	src/filesys/inode.c	/^inode_deny_write (struct inode *inode) $/;"	f
 inode_disk	src/filesys/inode.c	/^struct inode_disk$/;"	s	file:
 inode_get_inumber	src/filesys/inode.c	/^inode_get_inumber (const struct inode *inode)$/;"	f
+inode_growth	src/filesys/inode.c	/^inode_growth (disk_sector_t sector, off_t length, int level)$/;"	f
+inode_index	src/filesys/inode.c	/^    disk_sector_t inode_index[100];     \/* sector number of inode *\/$/;"	m	struct:inode_disk	file:
 inode_init	src/filesys/inode.c	/^inode_init (void) $/;"	f
 inode_length	src/filesys/inode.c	/^inode_length (const struct inode *inode)$/;"	f
 inode_open	src/filesys/inode.c	/^inode_open (disk_sector_t sector) $/;"	f
@@ -1166,6 +1174,7 @@ left_shift	src/devices/kbd.c	/^static bool left_shift, right_shift;    \/* Left 
 length	src/filesys/inode.c	/^    off_t length;                       \/* File size in bytes. *\/$/;"	m	struct:inode_disk	file:
 length	src/lib/stdio.c	/^    int length;         \/* Length of output string. *\/$/;"	m	struct:vsnprintf_aux	file:
 less	src/lib/kernel/hash.h	/^    hash_less_func *less;       \/* Comparison function. *\/$/;"	m	struct:hash
+level	src/filesys/inode.c	/^    uint32_t level;                     \/* level of inode *\/$/;"	m	struct:inode_disk	file:
 lib_SRC	src/filesys/build/Makefile	/^lib_SRC  = lib\/debug.c			# Debug helpers.$/;"	m
 lineup_SRC	src/examples/Makefile	/^lineup_SRC = lineup.c$/;"	m
 list	src/lib/kernel/list.h	/^struct list $/;"	s
@@ -1639,7 +1648,6 @@ ss2	src/userprog/tss.c	/^    uint16_t ss2, :16;$/;"	m	struct:tss	file:
 stack	src/threads/thread.h	/^    uint8_t *stack;                     \/* Saved stack pointer. *\/$/;"	m	struct:thread
 stack_growth	src/vm/page.c	/^bool stack_growth(struct hash *page_table, void *addr, uint32_t *pagedir){$/;"	f
 start	src/examples/insult.c	/^char *start[] =$/;"	v
-start	src/filesys/inode.c	/^    disk_sector_t start;                \/* First data sector. *\/$/;"	m	struct:inode_disk	file:
 start	src/tests/threads/alarm-simultaneous.c	/^    int64_t start;              \/* Current time at start of test. *\/$/;"	m	struct:sleep_test	file:
 start	src/tests/threads/alarm-wait.c	/^    int64_t start;              \/* Current time at start of test. *\/$/;"	m	struct:sleep_test	file:
 start	src/threads/loader.S	/^start:$/;"	l
@@ -1941,7 +1949,7 @@ uintmax_t	src/lib/stdint.h	/^typedef uint64_t uintmax_t;$/;"	t
 uintptr_t	src/lib/stdint.h	/^typedef uint32_t uintptr_t;$/;"	t
 umod64	src/lib/arithmetic.c	/^umod64 (uint64_t n, uint64_t d)$/;"	f	file:
 unshifted_keymap	src/devices/kbd.c	/^static const struct keymap unshifted_keymap[] = $/;"	v	typeref:struct:keymap	file:
-unused	src/filesys/inode.c	/^    uint32_t unused[125];               \/* Not used. *\/$/;"	m	struct:inode_disk	file:
+unused	src/filesys/inode.c	/^    uint32_t unused[24];               \/* Not used. *\/$/;"	m	struct:inode_disk	file:
 usage	src/examples/insult.c	/^usage (int ret_code, const char *message, ...)$/;"	f	file:
 usage	src/tests/filesys/extended/tar.c	/^usage (void) $/;"	f	file:
 usage	src/threads/init.c	/^usage (void)$/;"	f	file:

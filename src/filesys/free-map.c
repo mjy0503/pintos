@@ -26,25 +26,33 @@ free_map_init (void)
 bool
 free_map_allocate (size_t cnt, disk_sector_t *sectorp) 
 {
-  disk_sector_t sector = bitmap_scan_and_flip (free_map, 0, cnt, false);
-  if (sector != BITMAP_ERROR
-      && free_map_file != NULL
-      && !bitmap_write (free_map, free_map_file))
-    {
-      bitmap_set_multiple (free_map, sector, cnt, false); 
-      sector = BITMAP_ERROR;
+  size_t i;
+  for(i=0;i<cnt;i++){
+    sectorp[i] = bitmap_scan_and_flip (free_map, 0, 1, false);
+    if(sectorp[i] == BITMAP_ERROR){
+      for(i=i-1;i>=0;i--)
+        bitmap_set(free_map, sectorp[i], false);
+      return false;
     }
-  if (sector != BITMAP_ERROR)
-    *sectorp = sector;
-  return sector != BITMAP_ERROR;
+  }
+  if (free_map_file != NULL && !bitmap_write (free_map, free_map_file))
+    {
+      for(i=0;i<cnt;i++)
+        bitmap_set (free_map, sectorp[i], false); 
+      return false;
+    }
+  return true;
 }
 
 /* Makes CNT sectors starting at SECTOR available for use. */
 void
-free_map_release (disk_sector_t sector, size_t cnt)
+free_map_release (disk_sector_t *sectorp, size_t cnt)
 {
-  ASSERT (bitmap_all (free_map, sector, cnt));
-  bitmap_set_multiple (free_map, sector, cnt, false);
+  size_t i;
+  for(i=0;i<cnt;i++){
+    ASSERT (bitmap_test (free_map, sectorp[i]));
+    bitmap_set (free_map, sectorp[i], false);
+  }
   bitmap_write (free_map, free_map_file);
 }
 
@@ -72,7 +80,7 @@ void
 free_map_create (void) 
 {
   /* Create inode. */
-  if (!inode_create (FREE_MAP_SECTOR, bitmap_file_size (free_map)))
+  if (!inode_create (FREE_MAP_SECTOR, bitmap_file_size (free_map), INODE_MAX_LEVEL))
     PANIC ("free map creation failed");
 
   /* Write bitmap to file. */

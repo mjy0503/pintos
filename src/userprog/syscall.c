@@ -448,7 +448,7 @@ void sys_munmap(mapid_t mapping)
       p->pin = true;
       if(p->status == FRAME_MMAP){
         if(pagedir_is_dirty(t->pagedir, p->page))
-          file_write_at(m->file, p->page, PGSIZE, ofs);
+          file_write_at(m->file, p->page, p->read_bytes, ofs);
         frame_free(pagedir_get_page(t->pagedir, p->page));
         pagedir_clear_page(t->pagedir, p->page);
       }

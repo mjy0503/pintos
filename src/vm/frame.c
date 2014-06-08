@@ -68,7 +68,7 @@ bool frame_evict(enum palloc_flags flags){
         p->pin = true;
         lock_acquire(&file_lock);
         if(pagedir_is_dirty(f->thread->pagedir, p->page))
-          file_write_at(p->file, p->page, PGSIZE, p->offset);
+          file_write_at(p->file, p->page, p->read_bytes, p->offset);
         lock_release(&file_lock);
         p->status = MMAP;
         p->pin = false;

@@ -26,7 +26,7 @@ void page_action_func(struct hash_elem *hash_elem, void *aux UNUSED){
     p->pin = true;
     lock_acquire(&file_lock);
     if(thread_current()->pagedir != NULL && pagedir_is_dirty(thread_current()->pagedir, p->page))
-      file_write_at(p->file, p->page, PGSIZE, p->offset);
+      file_write_at(p->file, p->page, p->read_bytes, p->offset);
     lock_release(&file_lock);
   }
   free(p);
