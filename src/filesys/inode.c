@@ -185,10 +185,10 @@ void inode_delete(disk_sector_t sector){
   free_map_release(&sector, 1);
 }
 
-void
+bool
 inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length, int level)
 {
-  bool success = false;
+  bool success = true;
 
   ASSERT (length >= 0);
 
@@ -209,8 +209,9 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
       cache_write (sector, disk_inode, 0, DISK_SECTOR_SIZE);
       for (i = old_count; i < disk_inode->count; i++) 
         cache_write (disk_inode->inode_index[i], zeros, 0, DISK_SECTOR_SIZE); 
-      success = true; 
     } 
+    else
+      success = false;
   }
   else if(level == 1){ // sigle indirect
     disk_inode->count = DIV_ROUND_UP(sectors, DIRECT_INODE);
@@ -220,7 +221,7 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
     if(old_count!=0){
       struct inode_disk *new_disk_inode = calloc(1, sizeof(struct inode_disk));
       cache_read(disk_inode->inode_index[old_count-1], new_disk_inode, 0, DISK_SECTOR_SIZE);
-      inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1);
+      success &= inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1);
       free(new_disk_inode);
     }
     if (free_map_allocate (disk_inode->count - old_count, disk_inode->inode_index + old_count)){
@@ -232,8 +233,9 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
           size = DIRECT_INODE;
         inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1);
       }
-      success = true; 
     }
+    else
+      success = false;
   }
   else{ // double indirect
     disk_inode->count = DIV_ROUND_UP(sectors, DIRECT_INODE * SINGLE_INDIRECT_INODE);
@@ -243,7 +245,7 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
     if(old_count!=0){
       struct inode_disk *new_disk_inode = calloc(1, sizeof(struct inode_disk));
       cache_read(disk_inode->inode_index[old_count-1], new_disk_inode, 0, DISK_SECTOR_SIZE);
-      inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1);
+      success &= inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1);
       free(new_disk_inode);
     }
     if (free_map_allocate (disk_inode->count - old_count, disk_inode->inode_index + old_count)){
@@ -255,10 +257,11 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
           size = SINGLE_INDIRECT_INODE * DIRECT_INODE;
         inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1);
       }
-      success = true; 
     }
+    else
+      success = false;
   }
-
+  return success;
 }
 /* Reads an inode from SECTOR
    and returns a `struct inode' that contains it.
@@ -400,7 +403,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
   if(offset + size > inode->data.length){ //growth
-    inode_growth(&inode->data, inode->sector, offset + size, INODE_MAX_LEVEL);
+    if(!inode_growth(&inode->data, inode->sector, offset + size, INODE_MAX_LEVEL))
+      return 0;
     inode->data.length = offset + size;
   }
 
