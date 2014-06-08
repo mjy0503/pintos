@@ -5,6 +5,7 @@
 #include "filesys/file.h"
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
+#include "filesys/cache.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
 
@@ -24,6 +25,7 @@ filesys_init (bool format)
 
   inode_init ();
   free_map_init ();
+  cache_init ();
 
   if (format) 
     do_format ();
@@ -36,6 +38,7 @@ filesys_init (bool format)
 void
 filesys_done (void) 
 {
+  cache_close ();
   free_map_close ();
 }
 
