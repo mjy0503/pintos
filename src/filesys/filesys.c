@@ -8,10 +8,11 @@
 #include "filesys/cache.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
+#include "threads/malloc.h"
 
-/* The disk that contains the file system. */
 struct disk *filesys_disk;
 
+/* The disk that contains the file system. */
 static void do_format (void);
 
 /* Initializes the file system module.
@@ -22,7 +23,6 @@ filesys_init (bool format)
   filesys_disk = disk_get (0, 1);
   if (filesys_disk == NULL)
     PANIC ("hd0:1 (hdb) not present, file system initialization failed");
-
   inode_init ();
   free_map_init ();
   cache_init ();
@@ -50,14 +50,23 @@ bool
 filesys_create (const char *name, off_t initial_size) 
 {
   disk_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = get_directory(name, true);
+  if(dir == NULL)
+    return false;
+  char *filename = get_filename(name);
+  if(*filename=='\0'){
+    dir_close(dir);
+    free(filename);
+    return false;
+  }
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size, INODE_MAX_LEVEL)
-                  && dir_add (dir, name, inode_sector));
+                  && inode_create (inode_sector, initial_size, INODE_MAX_LEVEL, false)
+                  && dir_add (dir, filename, inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (&inode_sector, 1);
   dir_close (dir);
+  free(filename);
 
   return success;
 }
@@ -70,13 +79,22 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  if(strcmp(name,"/")==0)
+    return file_open(inode_open(ROOT_DIR_SECTOR));
+  struct dir *dir = get_directory (name, true);
+  if(dir == NULL)
+    return false;
+  char *filename = get_filename(name);
+  if(*filename == '\0'){
+    dir_close(dir);
+    free(filename);
+    return NULL;
+  }
   struct inode *inode = NULL;
-
   if (dir != NULL)
-    dir_lookup (dir, name, &inode);
+    dir_lookup (dir, filename, &inode);
   dir_close (dir);
-
+  free(filename);
   return file_open (inode);
 }
 
@@ -87,9 +105,18 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
+  struct dir *dir = get_directory (name, true);
+  if(dir == NULL)
+    return false;
+  char *filename = get_filename(name);
+  if(*filename == '\0'){
+    dir_close(dir);
+    free(filename);
+    return NULL;
+  }
+  bool success = dir_remove (dir, filename);
   dir_close (dir); 
+  free(filename);
 
   return success;
 }
@@ -100,7 +127,7 @@ do_format (void)
 {
   printf ("Formatting file system...");
   free_map_create ();
-  if (!dir_create (ROOT_DIR_SECTOR, 16))
+  if (!dir_create (ROOT_DIR_SECTOR, 16, ROOT_DIR_SECTOR))
     PANIC ("root directory creation failed");
   free_map_close ();
   printf ("done.\n");

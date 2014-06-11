@@ -193,6 +193,10 @@ thread_create (const char *name, int priority,
   list_init(&t->mmap_list);
   t->mmap_id = 1;
   tid = t->tid = allocate_tid ();
+  if(thread_current()->dir != NULL)
+    t->dir = dir_reopen(thread_current()->dir);
+  else
+    t->dir = NULL;
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);

@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include "threads/synch.h"
+#include "filesys/directory.h"
 #include <list.h>
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
@@ -8,8 +9,9 @@
 #define mapid_t int
 
 struct file_fd{
-  int fd;
-  struct file *file;
+  int fd;                 /* number of file descriptor */
+  struct file *file;      /* opened file */
+  struct dir *dir;        /* opened directory */
   struct list_elem elem;
 };
 
@@ -32,5 +34,10 @@ unsigned sys_tell (int fd);
 void sys_close (int fd);
 mapid_t sys_mmap(int fd, void *addr);
 void sys_munmap(mapid_t mapping);
+bool sys_chdir(const char *dir);
+bool sys_mkdir(const char *dir);
+bool sys_readdir(int fd, char *name);
+bool sys_isdir(int fd);
+int sys_inumber(int fd);
 
 #endif /* userprog/syscall.h */

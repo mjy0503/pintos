@@ -12,7 +12,10 @@
 #include "threads/init.h"
 #include "threads/palloc.h"
 #include "filesys/file.h"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
 #include "filesys/filesys.h"
+#include "filesys/free-map.h"
 #include "devices/input.h"
 #include "vm/page.h"
 #include "vm/frame.h"
@@ -67,6 +70,18 @@ get_file(int fd)
   for(e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)){
     if(fd == list_entry(e, struct file_fd, elem)->fd)
       return list_entry(e, struct file_fd, elem)->file;
+  }
+  return NULL;
+}
+
+struct dir*
+get_dir(int fd)
+{
+  struct thread *t = thread_current();
+  struct list_elem *e;
+  for(e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)){
+    if(fd == list_entry(e, struct file_fd, elem)->fd)
+      return list_entry(e, struct file_fd, elem)->dir;
   }
   return NULL;
 }
@@ -222,6 +237,52 @@ syscall_handler (struct intr_frame *f UNUSED)
       sys_munmap(mapping);
       break;
     }
+    case SYS_CHDIR:
+    {
+      const char *dir;
+      check_vaddr(f->esp+4);
+      memcpy(&dir, f->esp+4, sizeof(char *));
+      check_vaddr((void *)dir);
+      f->eax = sys_chdir(dir);
+      break;
+    }
+    case SYS_MKDIR:
+    {
+      const char *dir;
+      check_vaddr(f->esp+4);
+      memcpy(&dir, f->esp+4, sizeof(char *));
+      check_vaddr((void *)dir);
+      f->eax = sys_mkdir(dir);
+      break;
+    }
+    case SYS_READDIR:
+    {
+      int fd;
+      char *name;
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
+      memcpy(&fd, f->esp+4, sizeof(int));
+      memcpy(&name, f->esp+8, sizeof(char *));
+      check_vaddr((void *)name);
+      f->eax = sys_readdir(fd, name);
+      break;
+    }
+    case SYS_ISDIR:
+    {
+      int fd;
+      check_vaddr(f->esp+4);
+      memcpy(&fd, f->esp+4, sizeof(int));
+      f->eax = sys_isdir(fd);
+      break;
+    }
+    case SYS_INUMBER:
+    {
+      int fd;
+      check_vaddr(f->esp+4);
+      memcpy(&fd, f->esp+4, sizeof(int));
+      f->eax = sys_inumber(fd);
+      break;
+    }
     default:
     sys_exit(-1);
     break;
@@ -278,16 +339,18 @@ int sys_open (const char *file)
     return -1;
   struct thread *t = thread_current();
   int fd = t->maxfd;
-
   struct file_fd *new_file_fd = palloc_get_page(0);
   if(new_file_fd == NULL)
     return -1;
 
   new_file_fd->fd = fd;
+  if(inode_is_dir(file_get_inode(open_file)))
+    new_file_fd->dir = dir_open(inode_reopen(file_get_inode(open_file)));
+  else
+    new_file_fd->dir = NULL;
   new_file_fd->file = open_file;
   list_push_back(&t->file_list, &new_file_fd->elem);
   t->maxfd++;
-
   return fd;
 }
 
@@ -330,6 +393,9 @@ int sys_write (int fd, const void *buffer, unsigned size)
   struct file *open_file = get_file(fd);
   if(open_file == NULL)
     return -1;
+  struct dir *open_dir = get_dir(fd);
+  if(open_dir != NULL)
+    return -1;
   lock_acquire(&file_lock);
   int ret = file_write(open_file, buffer, size);
   lock_release(&file_lock);
@@ -360,24 +426,23 @@ unsigned sys_tell (int fd)
 void sys_close (int fd)
 {
   struct thread *t = thread_current();
-  struct file *del_file = NULL;
   struct file_fd *del_file_fd;
   struct list_elem *e;
 
   for(e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)){
     del_file_fd = list_entry(e, struct file_fd, elem);
     if(del_file_fd->fd == fd){
-      del_file = del_file_fd->file;
+      lock_acquire(&file_lock);
+      file_close(del_file_fd->file);
+      if(del_file_fd->dir != NULL)
+        dir_close(del_file_fd->dir);
+      lock_release(&file_lock);
       list_remove(e);
       palloc_free_page(del_file_fd);
       break;
     }
   }
 
-  lock_acquire(&file_lock);
-  if(del_file != NULL)
-    file_close(del_file);
-  lock_release(&file_lock);
 }
 
 mapid_t sys_mmap(int fd, void *addr)
@@ -463,3 +528,76 @@ void sys_munmap(mapid_t mapping)
   lock_release(&file_lock);
   free(m);
 }
+
+bool sys_chdir(const char *dir){
+  lock_acquire(&file_lock);
+  struct dir *new_dir = get_directory(dir, false);
+  if(new_dir == NULL){
+    lock_release(&file_lock);
+    return false;
+  }
+  if(thread_current()->dir != NULL)
+    dir_close(thread_current()->dir);
+  thread_current()->dir = new_dir;
+  lock_release(&file_lock);
+  return true;
+}
+
+bool sys_mkdir(const char *dir){
+  lock_acquire(&file_lock);
+  struct dir *parent_dir = get_directory(dir, true);
+  if(parent_dir == NULL){
+    lock_release(&file_lock);
+    return false;
+  }
+  char *filename = get_filename(dir);
+  if(*filename == '\0'){
+    lock_release(&file_lock);
+    dir_close(parent_dir);
+    free(filename);
+    return false;
+  }
+  disk_sector_t inode_sector = -1;
+  struct inode *inode;
+  bool success = !dir_lookup(parent_dir, filename, &inode) 
+                  && free_map_allocate (1, &inode_sector)
+                  && dir_create(inode_sector, 16, inode_number(dir_get_inode(parent_dir)))
+                  && dir_add (parent_dir, filename, inode_sector);
+
+  dir_close(parent_dir);
+  free(filename);
+  if(!success && inode_sector != -1)
+    free_map_release(&inode_sector, 1);
+  lock_release(&file_lock);
+  return success;
+}
+
+bool sys_readdir(int fd, char *name){
+  struct file *open_file = get_file(fd);
+  struct dir *open_dir = get_dir(fd);
+  if(open_file == NULL || open_dir == NULL)
+    return false;
+  lock_acquire(&file_lock);
+  bool ret = dir_readdir(open_dir, name);
+  lock_release(&file_lock);
+  return ret;
+}
+
+bool sys_isdir(int fd){
+  struct file *open_file = get_file(fd);
+  struct dir *open_dir = get_dir(fd);
+  if(open_file == NULL || open_dir == NULL)
+    return false;
+  return true;
+}
+
+int sys_inumber(int fd){
+  struct file *open_file = get_file(fd);
+  if(open_file == NULL)
+    return -1;
+  lock_acquire(&file_lock);
+  int ret = inode_number(file_get_inode(open_file));
+  lock_release(&file_lock);
+  return ret;
+}
+

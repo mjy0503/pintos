@@ -6,6 +6,7 @@
 #include <hash.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "filesys/directory.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -110,6 +111,7 @@ struct thread
     struct list mmap_list;              /* list of mmap_entry */
     struct hash page_table;             /* supplement page_entry table */
     void *esp;                          /* process's stack pointer */
+    struct dir *dir;                    /* working directory of thread */
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

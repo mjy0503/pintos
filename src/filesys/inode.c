@@ -25,7 +25,9 @@ struct inode_disk
     uint32_t count;                     /* number of inode */
     uint32_t level;                     /* level of inode */
     disk_sector_t inode_index[100];     /* sector number of inode */
-    uint32_t unused[24];               /* Not used. */
+    disk_sector_t parent_sector;        /* Sector number of parent (only level 2)*/
+    uint32_t is_dir;                    /* check inode is directory */
+    uint32_t unused[22];               /* Not used. */
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -89,7 +91,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (disk_sector_t sector, off_t length, int level)
+inode_create (disk_sector_t sector, off_t length, int level, bool is_dir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -107,6 +109,7 @@ inode_create (disk_sector_t sector, off_t length, int level)
     disk_inode->length = length;
     disk_inode->magic = INODE_MAGIC;
     disk_inode->level = level;
+    disk_inode->is_dir = is_dir;
     if(level == 0){ // direct
       disk_inode->count = sectors;
       if (free_map_allocate (sectors, disk_inode->inode_index)){
@@ -128,7 +131,7 @@ inode_create (disk_sector_t sector, off_t length, int level)
           size = sectors - DIRECT_INODE*i;
           if(size > DIRECT_INODE)
             size = DIRECT_INODE;
-          if(!inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1)){
+          if(!inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1, is_dir)){
             success = false;
             for(i=i-1;i>=0;i--)
               inode_delete(disk_inode->inode_index[i]);
@@ -150,7 +153,7 @@ inode_create (disk_sector_t sector, off_t length, int level)
           size = sectors-DIRECT_INODE*SINGLE_INDIRECT_INODE*i;
           if(size > SINGLE_INDIRECT_INODE * DIRECT_INODE)
             size = SINGLE_INDIRECT_INODE * DIRECT_INODE;
-          if(!inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1)){
+          if(!inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1, is_dir)){
             success = false;
             for(i=i-1;i>=0;i--)
               inode_delete(disk_inode->inode_index[i]);
@@ -181,12 +184,13 @@ void inode_delete(disk_sector_t sector){
       for(i=0;i<disk_inode->count;i++)
         inode_delete(disk_inode->inode_index[i]);
     }
+    free(disk_inode);
   }
   free_map_release(&sector, 1);
 }
 
 bool
-inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length, int level)
+inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length, int level, bool is_dir)
 {
   bool success = true;
 
@@ -199,6 +203,7 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
   size_t sectors = bytes_to_sectors (length);
   disk_inode->length = length;
   disk_inode->level = level;
+  disk_inode->is_dir = is_dir;
   size_t old_count = disk_inode->count;
   if(level == 0){ // direct
     disk_inode->count = sectors;
@@ -220,18 +225,21 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
       size = DIRECT_INODE;    
     if(old_count!=0){
       struct inode_disk *new_disk_inode = calloc(1, sizeof(struct inode_disk));
+      if(new_disk_inode == NULL)
+        return false;
       cache_read(disk_inode->inode_index[old_count-1], new_disk_inode, 0, DISK_SECTOR_SIZE);
-      success &= inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1);
+      success &= inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1, is_dir);
       free(new_disk_inode);
     }
-    if (free_map_allocate (disk_inode->count - old_count, disk_inode->inode_index + old_count)){
+    if (success && free_map_allocate (disk_inode->count - old_count, disk_inode->inode_index + old_count)){
       cache_write (sector, disk_inode, 0, DISK_SECTOR_SIZE);
       int i;
       for (i = old_count; i < disk_inode->count; i++){
         size = sectors - DIRECT_INODE*i;
         if(size > DIRECT_INODE)
           size = DIRECT_INODE;
-        inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1);
+        if(!inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1, is_dir))
+          return false;
       }
     }
     else
@@ -244,18 +252,21 @@ inode_growth (struct inode_disk *disk_inode, disk_sector_t sector, off_t length,
       size = SINGLE_INDIRECT_INODE * DIRECT_INODE;
     if(old_count!=0){
       struct inode_disk *new_disk_inode = calloc(1, sizeof(struct inode_disk));
+      if(new_disk_inode == NULL)
+        return false;
       cache_read(disk_inode->inode_index[old_count-1], new_disk_inode, 0, DISK_SECTOR_SIZE);
-      success &= inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1);
+      success &= inode_growth(new_disk_inode, disk_inode->inode_index[old_count-1], size*DISK_SECTOR_SIZE, level-1, is_dir);
       free(new_disk_inode);
     }
-    if (free_map_allocate (disk_inode->count - old_count, disk_inode->inode_index + old_count)){
+    if (success && free_map_allocate (disk_inode->count - old_count, disk_inode->inode_index + old_count)){
       cache_write (sector, disk_inode, 0, DISK_SECTOR_SIZE);
       int i;
       for (i = old_count; i < disk_inode->count; i++){
         size = sectors-DIRECT_INODE*SINGLE_INDIRECT_INODE*i;
         if(size > SINGLE_INDIRECT_INODE * DIRECT_INODE)
           size = SINGLE_INDIRECT_INODE * DIRECT_INODE;
-        inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1);
+        if(!inode_create(disk_inode->inode_index[i], size*DISK_SECTOR_SIZE, level-1, is_dir))
+          return false;
       }
     }
     else
@@ -271,7 +282,6 @@ inode_open (disk_sector_t sector)
 {
   struct list_elem *e;
   struct inode *inode;
-
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e)) 
@@ -324,7 +334,7 @@ inode_close (struct inode *inode)
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
-
+  bool flag = inode->sector == 4023;
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -399,11 +409,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 {
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
-
   if (inode->deny_write_cnt)
     return 0;
   if(offset + size > inode->data.length){ //growth
-    if(!inode_growth(&inode->data, inode->sector, offset + size, INODE_MAX_LEVEL))
+    if(!inode_growth(&inode->data, inode->sector, offset + size, INODE_MAX_LEVEL, inode->data.is_dir))
       return 0;
     inode->data.length = offset + size;
   }
@@ -460,4 +469,25 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+bool inode_is_dir (struct inode *inode){
+  return inode->data.is_dir;
+}
+
+int inode_number(struct inode *inode){
+  return inode->sector;
+}
+
+int inode_parent_number(struct inode *inode){
+  return inode->data.parent_sector;
+}
+
+void inode_set_parent(struct inode *inode, disk_sector_t parent_sector){
+  inode->data.parent_sector = parent_sector;
+  cache_write(inode->sector, &inode->data, 0, DISK_SECTOR_SIZE);
+}
+
+bool inode_removed(struct inode *inode){
+  return inode->removed;
 }

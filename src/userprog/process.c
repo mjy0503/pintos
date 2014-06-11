@@ -201,7 +201,7 @@ process_exit (void)
     file_close(curr->exec_file);
     lock_release(&file_lock);
   }
-
+  dir_close(curr->dir);
   page_table_destroy(&curr->page_table);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -343,7 +343,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   file_deny_write(file);
   thread_current()->exec_file = file;
-
+  if(t->dir == NULL)
+    t->dir = dir_open_root();
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)

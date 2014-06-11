@@ -8,12 +8,13 @@
 #define CACHE_SIZE 64
 struct cache_entry
 {
-  void *data;
-  disk_sector_t sector;
-  bool dirty;
+  void *data;             /* data in cache */
+  disk_sector_t sector;   /* write sector of disk */
+  bool dirty;             /* dirty bit */
+  bool access;            /* access bit using clock algorithm */
   struct list_elem elem;
 };
-//TODO read_ahead, write_behind timer?
+
 static int cache_count;
 
 struct lock cache_lock;
@@ -60,6 +61,7 @@ void cache_read(disk_sector_t sector, void *buffer, off_t ofs, off_t size){
     list_push_back(&cache_list, &c->elem);
     disk_read(filesys_disk, c->sector, c->data);
   }
+  c->access = 1;
 
   memcpy(buffer, c->data+ofs, size);
   lock_release(&cache_lock);
@@ -86,6 +88,7 @@ void cache_write(disk_sector_t sector, const void *buffer, off_t ofs, off_t size
       disk_read(filesys_disk, c->sector, c->data);
   }
   c->dirty = 1;
+  c->access = 1;
   memcpy(c->data+ofs, buffer, size);
   lock_release(&cache_lock);
 }
@@ -93,6 +96,20 @@ void cache_write(disk_sector_t sector, const void *buffer, off_t ofs, off_t size
 void cache_evict(){
   cache_count--;
   struct cache_entry *c;
+  struct list_elem *e;
+  for(e = list_begin(&cache_list); e != list_end(&cache_list); e = list_next(e)){
+    c = list_entry(e, struct cache_entry, elem);
+    if(!c->access){
+      list_remove(e);
+      if(c->dirty)
+        disk_write(filesys_disk, c->sector, c->data);
+      free(c->data);
+      free(c);
+      return ;
+    }
+    else
+      c->access = 0;
+  }
   c = list_entry(list_pop_front(&cache_list), struct cache_entry, elem);
   if(c->dirty)
     disk_write(filesys_disk, c->sector, c->data);

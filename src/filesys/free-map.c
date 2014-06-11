@@ -26,12 +26,14 @@ free_map_init (void)
 bool
 free_map_allocate (size_t cnt, disk_sector_t *sectorp) 
 {
-  size_t i;
+  int i;
   for(i=0;i<cnt;i++){
     sectorp[i] = bitmap_scan_and_flip (free_map, 0, 1, false);
     if(sectorp[i] == BITMAP_ERROR){
       for(i=i-1;i>=0;i--)
         bitmap_set(free_map, sectorp[i], false);
+      if(free_map_file)
+        bitmap_write(free_map, free_map_file);
       return false;
     }
   }
@@ -80,7 +82,7 @@ void
 free_map_create (void) 
 {
   /* Create inode. */
-  if (!inode_create (FREE_MAP_SECTOR, bitmap_file_size (free_map), INODE_MAX_LEVEL))
+  if (!inode_create (FREE_MAP_SECTOR, bitmap_file_size (free_map), INODE_MAX_LEVEL, false))
     PANIC ("free map creation failed");
 
   /* Write bitmap to file. */
